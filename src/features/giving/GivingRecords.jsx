@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, deleteDoc, doc, where } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { useAuth } from '../../context/AuthContext';
 import { Plus, CreditCard, Edit, Trash2, TrendingUp, Search, Calendar, FileText } from 'lucide-react';
 import GivingFormModal from './GivingFormModal';
 
 export default function GivingRecords() {
+  const { userProfile } = useAuth();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -14,19 +16,25 @@ export default function GivingRecords() {
   const [editingRecord, setEditingRecord] = useState(null);
 
   useEffect(() => {
-    // Fetch giving ordered by date descending
-    const q = query(collection(db, 'giving'), orderBy('date', 'desc'));
+    if (!userProfile?.churchId) return;
+    // Fetch giving without orderBy to avoid composite index requirements
+    const q = query(collection(db, 'giving'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({
+      let docs = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
+      
+      // Support legacy data
+      docs = docs.filter(d => d.churchId === userProfile.churchId || (!d.churchId && userProfile.churchId === 'casubiduan'));
+      // Sort in memory (descending by date)
+      docs.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
       setRecords(docs);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [userProfile?.churchId]);
 
   const handleAddClick = () => {
     setEditingRecord(null);

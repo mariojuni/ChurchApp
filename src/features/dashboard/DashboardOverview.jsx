@@ -1,14 +1,14 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Users, HeartHandshake, CreditCard, Calendar, ArrowRight, UserPlus, Clock, ClipboardCheck } from 'lucide-react';
-import { collection, query, getDocs, limit, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, getDocs, limit, orderBy, onSnapshot, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
-const CHURCH_ID = 'casubiduan';
-
 export default function DashboardOverview() {
   const { userProfile } = useAuth();
+  const CHURCH_ID = userProfile?.churchId || 'casubiduan';
+  
   const [stats, setStats] = useState({
     members: 0,
     givingThisWeek: 0,
@@ -23,16 +23,26 @@ export default function DashboardOverview() {
   useEffect(() => {
     async function fetchStats() {
       try {
+        if (!userProfile?.churchId) return;
+        
         // 1. Fetch Members count
         const membersSnap = await getDocs(collection(db, 'users'));
-        const membersCount = membersSnap.size;
+        const membersCount = membersSnap.docs.filter(d => {
+          const data = d.data();
+          return data.churchId === CHURCH_ID || (!data.churchId && CHURCH_ID === 'casubiduan');
+        }).length;
 
-        // 2. Fetch recent giving for "This Week" (Simplified logic: just fetch all and filter in memory for MVP)
+        // 2. Fetch recent giving for "This Week"
         const givingSnap = await getDocs(collection(db, 'giving'));
+        const givingDocs = givingSnap.docs.filter(d => {
+          const data = d.data();
+          return data.churchId === CHURCH_ID || (!data.churchId && CHURCH_ID === 'casubiduan');
+        });
+        
         const now = new Date();
         const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         let totalGivingThisWeek = 0;
-        givingSnap.forEach(doc => {
+        givingDocs.forEach(doc => {
           const data = doc.data();
           if (data.date) {
             const dateObj = new Date(data.date + 'T00:00:00');
@@ -59,9 +69,10 @@ export default function DashboardOverview() {
         });
 
         // 5. Fetch upcoming events (next 5)
-        // Note: For a real app, query by date > now. For MVP, we'll fetch all, sort, and slice.
         const eventsSnap = await getDocs(collection(db, 'events'));
-        const allEvents = eventsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const allEvents = eventsSnap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(d => d.churchId === CHURCH_ID || (!d.churchId && CHURCH_ID === 'casubiduan'));
         const upcomingEvents = allEvents
           .filter(e => e.date) // ensure it has a date
           .sort((a, b) => new Date(a.date) - new Date(b.date))
@@ -69,10 +80,14 @@ export default function DashboardOverview() {
           .slice(0, 4); // Take top 4
 
         // 6. Fetch recent attendance
-        const attendanceSnap = await getDocs(query(collection(db, 'attendance_sessions'), orderBy('date', 'desc'), limit(1)));
+        const attendanceSnap = await getDocs(query(collection(db, 'attendance_sessions'), orderBy('date', 'desc')));
+        const validAttendance = attendanceSnap.docs
+          .map(d => d.data())
+          .filter(d => d.churchId === CHURCH_ID || (!d.churchId && CHURCH_ID === 'casubiduan'));
+          
         let recentAtt = 0;
-        if (!attendanceSnap.empty) {
-          const m = attendanceSnap.docs[0].data().metrics || {};
+        if (validAttendance.length > 0) {
+          const m = validAttendance[0].metrics || {};
           recentAtt = (m.present || 0) + (m.visitors || 0);
         }
 
@@ -92,7 +107,7 @@ export default function DashboardOverview() {
       }
     }
     fetchStats();
-  }, []);
+  }, [userProfile?.churchId]);
 
   const canSeeGiving = ['super_admin', 'church_admin', 'finance_admin'].includes(userProfile?.role?.toLowerCase());
 

@@ -4,6 +4,7 @@ import { db } from '../../firebase';
 import { Search, Plus, MoreVertical, Edit, Archive, Users, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import MinistryFormModal from './MinistryFormModal';
+import { useAuth } from '../../context/AuthContext';
 
 export default function MinistriesList() {
   const [ministries, setMinistries] = useState([]);
@@ -16,19 +17,25 @@ export default function MinistriesList() {
   const [activeMenuId, setActiveMenuId] = useState(null);
 
   const navigate = useNavigate();
+  const { userProfile } = useAuth();
 
   useEffect(() => {
+    if (!userProfile?.churchId) return;
+
     const q = query(collection(db, 'ministries'), orderBy('name', 'asc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({
+      let docs = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
+      // Filter by the active workspace/church
+      docs = docs.filter(d => d.churchId === userProfile.churchId || (!d.churchId && userProfile.churchId === 'casubiduan'));
+      
       setMinistries(docs);
       setLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [userProfile?.churchId]);
 
   const filteredMinistries = ministries.filter(m => {
     const searchMatch = m.name?.toLowerCase().includes(searchTerm.toLowerCase());

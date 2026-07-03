@@ -9,7 +9,6 @@ export default function AssignMemberModal({ isOpen, onClose, ministry }) {
   const [searchTerm, setSearchTerm] = useState('');
   
   const [selectedMemberId, setSelectedMemberId] = useState('');
-  const [selectedRole, setSelectedRole] = useState(ministry?.roles?.[0] || 'Member');
   
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -18,7 +17,7 @@ export default function AssignMemberModal({ isOpen, onClose, ministry }) {
     if (isOpen) {
       fetchMembers();
       setSelectedMemberId('');
-      setSelectedRole(ministry?.roles?.[0] || 'Member');
+
       setSearchTerm('');
       setError('');
     }
@@ -66,8 +65,7 @@ export default function AssignMemberModal({ isOpen, onClose, ministry }) {
       
       const newMemberObj = {
         memberId: memberDoc.id,
-        memberName: memberDoc.name,
-        role: selectedRole
+        memberName: memberDoc.name
       };
 
       const updatedMembers = [...(ministry.members || []), newMemberObj];
@@ -138,23 +136,6 @@ export default function AssignMemberModal({ isOpen, onClose, ministry }) {
               )}
             </div>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-church-navy mb-1">Assign Role</label>
-            <select 
-              value={selectedRole} 
-              onChange={(e) => setSelectedRole(e.target.value)} 
-              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green bg-white"
-            >
-              {ministry.roles?.map(role => (
-                <option key={role} value={role}>{role}</option>
-              ))}
-              {(!ministry.roles || ministry.roles.length === 0) && (
-                <option value="Member">Member</option>
-              )}
-            </select>
-          </div>
-
         </form>
 
         <div className="p-6 border-t border-gray-100 flex justify-end space-x-3 bg-gray-50/50">

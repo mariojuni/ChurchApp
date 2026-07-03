@@ -1,11 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, writeBatch, where } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { useAuth } from '../../context/AuthContext';
 import { Search, Plus, MoreVertical, Filter, Edit, Archive, Eye, UploadCloud, Users } from 'lucide-react';
 import MemberFormModal from './MemberFormModal';
 import MemberProfileModal from './MemberProfileModal';
+import * as XLSX from 'xlsx';
 
 export default function MembersList() {
+  const { userProfile } = useAuth();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -25,18 +28,55 @@ export default function MembersList() {
   const [isImporting, setIsImporting] = useState(false);
 
   useEffect(() => {
-    const q = query(collection(db, 'users'), orderBy('name', 'asc'));
+    if (!userProfile?.churchId) return;
+    const q = query(collection(db, 'users'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({
+      let docs = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
+      
+      // Filter in memory to support legacy records that don't have a churchId yet
+      docs = docs.filter(d => d.churchId === userProfile.churchId || (!d.churchId && userProfile.churchId === 'casubiduan'));
+      
+      // Format names: First Name Middle Initial Last Name (Title Case)
+      docs = docs.map(d => {
+        let displayName = d.name || '';
+        
+        const toTitleCase = (str) => {
+          if (!str) return '';
+          return str.split(/[\s-]+/).map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+          ).join(' ');
+        };
+
+        if (d.firstName || d.lastName) {
+            const f = toTitleCase(d.firstName);
+            const l = toTitleCase(d.lastName);
+            const m = d.middleName ? d.middleName.charAt(0).toUpperCase() + '.' : '';
+            displayName = [f, m, l].filter(Boolean).join(' ');
+        } else if (d.name) {
+            const parts = d.name.split(' ').filter(Boolean);
+            if (parts.length > 2) {
+                const f = toTitleCase(parts[0]);
+                const l = toTitleCase(parts[parts.length - 1]);
+                const m = parts[1].charAt(0).toUpperCase() + '.';
+                displayName = `${f} ${m} ${l}`;
+            } else {
+                displayName = toTitleCase(d.name);
+            }
+        }
+        
+        return { ...d, displayName };
+      });
+      
+      docs.sort((a, b) => (a.displayName || '').localeCompare(b.displayName || ''));
       setMembers(docs);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [userProfile?.churchId]);
 
   const filteredMembers = members.filter(m => {
     // Search match
@@ -108,55 +148,143 @@ export default function MembersList() {
     setIsImporting(true);
     const reader = new FileReader();
     reader.onload = async (event) => {
-      const text = event.target.result;
-      await processCSV(text);
+      const data = new Uint8Array(event.target.result);
+      await processFile(data);
       setIsImporting(false);
       e.target.value = null; // reset
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
   };
 
-  const processCSV = async (text) => {
+  const processFile = async (data) => {
     try {
-      const lines = text.split('\n');
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const rawArray = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false });
       
+      // Find the header row (some Excel files have title rows at the top)
+      let headerRowIndex = -1;
+      for (let i = 0; i < Math.min(rawArray.length, 20); i++) {
+        const rowString = rawArray[i].map(c => String(c || '').toLowerCase()).join('|');
+        if (rowString.includes('name') || rowString.includes('first name') || rowString.includes('email')) {
+          headerRowIndex = i;
+          break;
+        }
+      }
+
+      if (headerRowIndex === -1) {
+         alert("Could not find a header row with 'Name', 'First Name', or 'Email'. Please make sure your column headers are correct.");
+         return;
+      }
+
+      const headers = rawArray[headerRowIndex].map(h => String(h || '').trim().toLowerCase());
       const newRecords = [];
+      const updateRecords = [];
       
-      for (let i = 1; i < lines.length; i++) {
-        if (!lines[i].trim()) continue;
-        const values = lines[i].split(',').map(v => v.trim());
+      for (let i = headerRowIndex + 1; i < rawArray.length; i++) {
+        const rowArray = rawArray[i];
+        if (!rowArray || rowArray.length === 0) continue;
+        
         const record = {};
         headers.forEach((h, idx) => {
-          record[h] = values[idx] || '';
+          record[h] = rowArray[idx] !== undefined && rowArray[idx] !== null ? String(rowArray[idx]).trim() : '';
         });
         
+        // Skip completely empty rows
+        if (Object.values(record).every(v => !v)) continue;
+        
+        const firstName = record['first name'] || record.firstname || '';
+        const middleName = record['middle name'] || record.middlename || '';
+        const lastName = record['last name'] || record.lastname || '';
+        
+        // Combine names if they provided separate columns, or fallback to the full name column
+        const computedName = [firstName, middleName, lastName].filter(Boolean).join(' ');
+        
+        const remarks = record.remarks || record.remark || '';
+        let parsedStatus = 'Active';
+        if (remarks) {
+          const upperRemarks = remarks.toUpperCase();
+          if (upperRemarks.includes('FULL MEMBER')) {
+            parsedStatus = 'Active';
+          } else if (upperRemarks.includes('INACTIVE')) {
+            parsedStatus = 'Inactive';
+          } else if (upperRemarks.includes('VISITOR')) {
+            parsedStatus = 'Visitor';
+          }
+        }
+        
+        const baptizedVal = record.baptized || record.baptize || record.betized || record['baptism status'] || '';
+        const parsedBaptism = baptizedVal.trim().toLowerCase() === 'yes' ? 'Baptized' : 'Not Baptized';
+        
+        const sexVal = record.sex || record.gender || '';
+        let parsedGender = '';
+        if (sexVal.trim().toLowerCase().startsWith('m')) parsedGender = 'Male';
+        else if (sexVal.trim().toLowerCase().startsWith('f')) parsedGender = 'Female';
+        else parsedGender = sexVal.trim();
+        
+        // We set raw: false in sheet_to_json, so dates should come as formatted strings
+        let parsedBirthday = record.birthday || record.birthdate || record.dob || '';
+
         // Map common CSV headers to our schema
         const newMember = {
-          name: record.name || record['full name'] || '',
+          firstName: firstName,
+          middleName: middleName,
+          lastName: lastName,
+          name: computedName || record.name || record['full name'] || '',
           email: record.email || '',
-          phone: record.phone || record['contact number'] || '',
+          phone: record.phone || record['contact number'] || record['contact #'] || '',
+          gender: parsedGender,
+          birthday: parsedBirthday,
           role: 'member',
-          membershipStatus: 'Active',
-          churchId: 'casubiduan',
+          membershipStatus: parsedStatus,
+          baptismStatus: parsedBaptism,
+          notes: remarks,
+          churchId: userProfile?.churchId || 'casubiduan',
           createdAt: new Date()
         };
 
         if (newMember.name) {
           // Duplicate Check
-          const isDup = members.some(m => 
+          const existingMember = members.find(m => 
             (m.email && newMember.email && m.email.toLowerCase() === newMember.email.toLowerCase()) ||
-            (m.name.toLowerCase() === newMember.name.toLowerCase())
+            (m.name && m.name.toLowerCase() === newMember.name.toLowerCase())
           );
           
-          if (!isDup) {
+          if (!existingMember) {
             newRecords.push(newMember);
+          } else {
+            // Update missing fields on existing member
+            const updates = {};
+            for (const [key, value] of Object.entries(newMember)) {
+              if (value && (
+                  !existingMember[key] || 
+                  existingMember[key] === 'Not Baptized' || 
+                  existingMember[key] === 'Unknown' ||
+                  existingMember[key] === 'Active' // Might update status if it changed
+              )) {
+                // Prevent overwriting core fields
+                if (key !== 'createdAt' && key !== 'churchId' && key !== 'role' && key !== 'name' && key !== 'membershipStatus') {
+                  updates[key] = value;
+                }
+              }
+            }
+            
+            // Special handling for membership status changes
+            if (newMember.membershipStatus && newMember.membershipStatus !== 'Active' && existingMember.membershipStatus !== newMember.membershipStatus) {
+                updates.membershipStatus = newMember.membershipStatus;
+            }
+
+            if (Object.keys(updates).length > 0) {
+              updates.updatedAt = new Date();
+              updateRecords.push({ id: existingMember.id, data: updates });
+            }
           }
         }
       }
 
-      if (newRecords.length === 0) {
-        alert("No valid new records found. They may be duplicates or missing required fields (Name).");
+      if (newRecords.length === 0 && updateRecords.length === 0) {
+        alert(`Found ${rawArray.length - headerRowIndex - 1} data rows, but all members are already perfectly up-to-date!`);
         return;
       }
 
@@ -166,17 +294,21 @@ export default function MembersList() {
         const docRef = doc(collection(db, 'users'));
         batch.set(docRef, record);
       });
+      updateRecords.forEach(record => {
+        const docRef = doc(db, 'users', record.id);
+        batch.update(docRef, record.data);
+      });
       await batch.commit();
 
-      alert(`Successfully imported ${newRecords.length} new members!`);
+      alert(`Successfully imported ${newRecords.length} new members and updated ${updateRecords.length} existing members!`);
     } catch (err) {
       console.error(err);
-      alert("Error parsing CSV file. Please ensure it has a header row like: name, email, phone");
+      alert("Error parsing file. Please ensure it has a header row like: first name, middle name, last name, email, phone");
     }
   };
 
   return (
-    <div className="space-y-6 flex flex-col h-[calc(100vh-8rem)]">
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-church-navy">Members Directory</h1>
@@ -185,7 +317,7 @@ export default function MembersList() {
         <div className="flex items-center space-x-3">
           <input 
             type="file" 
-            accept=".csv" 
+            accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" 
             ref={fileInputRef} 
             className="hidden" 
             onChange={handleFileUpload} 
@@ -196,7 +328,7 @@ export default function MembersList() {
             className="flex items-center px-4 py-2.5 bg-white border border-gray-300 text-church-navy rounded-full shadow-sm text-sm font-bold hover:bg-gray-50 transition-opacity disabled:opacity-50"
           >
             <UploadCloud size={18} className="mr-2" />
-            {isImporting ? 'Importing...' : 'Import CSV'}
+            {isImporting ? 'Importing...' : 'Import Data'}
           </button>
           
           <button 
@@ -209,7 +341,7 @@ export default function MembersList() {
         </div>
       </div>
 
-      <div className="flex-1 bg-white rounded-3xl shadow-church-soft border border-gray-100 overflow-hidden flex flex-col relative">
+      <div className="bg-white rounded-3xl shadow-church-soft border border-gray-100 overflow-hidden">
         {/* Table Toolbar */}
         <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white">
           <div className="flex items-center space-x-4 flex-1">
@@ -246,8 +378,8 @@ export default function MembersList() {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto flex-1">
-          <table className="w-full text-left border-collapse min-h-[300px]">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50/50 border-b border-gray-100 text-xs font-bold text-church-slate uppercase tracking-wider">
                 <th className="p-4 pl-6">Member Details</th>
@@ -276,10 +408,10 @@ export default function MembersList() {
                     <td className="p-4 pl-6">
                       <div className="flex items-center cursor-pointer" onClick={() => handleViewProfile(member)}>
                         <div className="w-12 h-12 rounded-full bg-church-green/10 flex items-center justify-center text-church-green font-bold text-lg uppercase shrink-0">
-                          {member.name?.charAt(0) || 'U'}
+                          {member.displayName?.charAt(0) || 'U'}
                         </div>
                         <div className="ml-4">
-                          <p className="text-sm font-bold text-church-navy group-hover:text-church-green transition-colors">{member.name}</p>
+                          <p className="text-sm font-bold text-church-navy group-hover:text-church-green transition-colors">{member.displayName}</p>
                           <p className="text-xs text-church-slate">{member.gender || 'Unknown'} • {member.birthday ? new Date(member.birthday).toLocaleDateString() : 'No birthday'}</p>
                         </div>
                       </div>

@@ -1,19 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { X, DollarSign } from 'lucide-react';
-import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, serverTimestamp, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { useAuth } from '../../context/AuthContext';
 
 export default function GivingFormModal({ isOpen, onClose, record = null }) {
+  const { userProfile, currentUser } = useAuth();
   const [formData, setFormData] = useState({
     donorName: '',
     amount: '',
     date: '',
     fundType: 'Tithe',
     method: 'Cash',
-    notes: ''
+    notes: '',
+    proofUrl: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [members, setMembers] = useState([]);
 
   useEffect(() => {
     if (record) {
@@ -23,7 +27,8 @@ export default function GivingFormModal({ isOpen, onClose, record = null }) {
         date: record.date || '',
         fundType: record.fundType || 'Tithe',
         method: record.method || 'Cash',
-        notes: record.notes || ''
+        notes: record.notes || '',
+        proofUrl: record.proofUrl || ''
       });
     } else {
       const today = new Date().toISOString().split('T')[0];
@@ -33,11 +38,32 @@ export default function GivingFormModal({ isOpen, onClose, record = null }) {
         date: today,
         fundType: 'Tithe',
         method: 'Cash',
-        notes: ''
+        notes: '',
+        proofUrl: ''
       });
     }
     setError('');
-  }, [record, isOpen]);
+
+    // Fetch members for dropdown
+    if (isOpen) {
+      const fetchMembers = async () => {
+        try {
+          if (!userProfile?.churchId) return;
+          const q = query(collection(db, 'users'), where('churchId', '==', userProfile.churchId));
+          const snap = await getDocs(q);
+          const activeMembers = snap.docs
+            .map(d => d.data())
+            .filter(data => data.membershipStatus !== 'Archived' && data.name)
+            .map(data => data.name)
+            .sort((a, b) => a.localeCompare(b));
+          setMembers(activeMembers);
+        } catch (e) {
+          console.error("Failed to fetch members for dropdown", e);
+        }
+      };
+      fetchMembers();
+    }
+  }, [record, isOpen, userProfile?.churchId]);
 
   if (!isOpen) return null;
 
@@ -65,13 +91,15 @@ export default function GivingFormModal({ isOpen, onClose, record = null }) {
         const docRef = doc(db, 'giving', record.id);
         await updateDoc(docRef, {
           ...payload,
-          updatedAt: serverTimestamp()
+          updatedAt: serverTimestamp(),
+          updatedBy: currentUser?.uid || null
         });
       } else {
         await addDoc(collection(db, 'giving'), {
           ...payload,
           createdAt: serverTimestamp(),
-          churchId: 'church_1' // MVP hardcode
+          createdBy: currentUser?.uid || null,
+          churchId: userProfile?.churchId || 'casubiduan' 
         });
       }
       onClose();
@@ -107,11 +135,18 @@ export default function GivingFormModal({ isOpen, onClose, record = null }) {
               <input 
                 type="text" 
                 name="donorName"
+                list="donorList"
                 value={formData.donorName}
                 onChange={handleChange}
                 placeholder="e.g. John Doe (Leave blank for Anonymous)"
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow" 
               />
+              <datalist id="donorList">
+                <option value="Anonymous" />
+                {members.map(name => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
@@ -160,9 +195,9 @@ export default function GivingFormModal({ isOpen, onClose, record = null }) {
                   <option value="Tithe">Tithe</option>
                   <option value="Offering">Offering</option>
                   <option value="Building Fund">Building Fund</option>
-                  <option value="Missions">Missions</option>
-                  <option value="Sunday School">Sunday School</option>
-                  <option value="Other">Other</option>
+                  <option value="Altar Project">Altar Project</option>
+                  <option value="Special Project">Special Project</option>
+                  <option value="Others">Others</option>
                 </select>
               </div>
               <div>
@@ -175,9 +210,11 @@ export default function GivingFormModal({ isOpen, onClose, record = null }) {
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow bg-white appearance-none" 
                 >
                   <option value="Cash">Cash</option>
-                  <option value="Check">Check</option>
-                  <option value="Credit Card">Credit Card</option>
+                  <option value="GCash">GCash</option>
+                  <option value="Maya">Maya</option>
                   <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="Check">Check</option>
+                  <option value="Online Payment">Online Payment</option>
                 </select>
               </div>
             </div>

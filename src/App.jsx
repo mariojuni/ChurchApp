@@ -11,6 +11,7 @@ import DashboardOverview from './features/dashboard/DashboardOverview';
 import MembersList from './features/members/MembersList';
 import MinistriesList from './features/ministries/MinistriesList';
 import EventsList from './features/events/EventsList';
+import EventDetails from './features/events/EventDetails';
 import GivingRecords from './features/giving/GivingRecords';
 import SermonsList from './features/sermons/SermonsList';
 import BiblePlans from './features/bible/BiblePlans';
@@ -21,6 +22,9 @@ import MinistryDetails from './features/ministries/MinistryDetails';
 import AttendanceDashboard from './features/attendance/AttendanceDashboard';
 import TakeAttendance from './features/attendance/TakeAttendance';
 import AnnouncementsList from './features/announcements/AnnouncementsList';
+import ChurchesDashboard from './features/superadmin/ChurchesDashboard';
+import ReportsDashboard from './features/reports/ReportsDashboard';
+import SchedulesDashboard from './features/schedules/SchedulesDashboard';
 
 function AppRoutes() {
   const { currentUser } = useAuth();
@@ -66,6 +70,14 @@ function AppRoutes() {
             } 
           />
           <Route 
+            path="schedules" 
+            element={
+              <RoleGuard allowedRoles={['super_admin', 'church_admin', 'pastor', 'ministry_leader', 'viewer']}>
+                <SchedulesDashboard />
+              </RoleGuard>
+            } 
+          />
+          <Route 
             path="attendance" 
             element={
               <RoleGuard allowedRoles={['super_admin', 'church_admin', 'secretary', 'pastor']}>
@@ -89,14 +101,36 @@ function AppRoutes() {
               </RoleGuard>
             } 
           />
-
-
-          
+          <Route 
+            path="churches" 
+            element={
+              <RoleGuard allowedRoles={['super_admin']}>
+                <ChurchesDashboard />
+              </RoleGuard>
+            } 
+          />
+          <Route 
+            path="reports" 
+            element={
+              <RoleGuard allowedRoles={['super_admin', 'church_admin', 'pastor', 'finance_admin']}>
+                <ReportsDashboard />
+              </RoleGuard>
+            } 
+          />
+        
           <Route 
             path="events" 
             element={
               <RoleGuard allowedRoles={['super_admin', 'church_admin', 'secretary', 'pastor']}>
                 <EventsList />
+              </RoleGuard>
+            } 
+          />
+          <Route 
+            path="events/:id" 
+            element={
+              <RoleGuard allowedRoles={['super_admin', 'church_admin', 'secretary', 'pastor', 'viewer']}>
+                <EventDetails />
               </RoleGuard>
             } 
           />

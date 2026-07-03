@@ -39,9 +39,6 @@ export default function MinistryDetails() {
   
   // Basic stats
   const totalMembers = members.length;
-  // A leader is defined here by having a role containing "Leader" or if we add an explicit isLeader flag.
-  // For now, let's just count how many distinct roles are filled, or check if 'Leader' is in their role string.
-  const leaders = members.filter(m => m.role?.toLowerCase().includes('leader'));
 
   const handleRemoveMember = async (memberToRemove) => {
     if (window.confirm(`Remove ${memberToRemove.memberName} from ${ministry.name}?`)) {
@@ -140,7 +137,6 @@ export default function MinistryDetails() {
                   <thead>
                     <tr className="bg-white border-b border-gray-100 text-xs font-bold text-church-slate uppercase tracking-wider">
                       <th className="p-4 pl-6">Member Name</th>
-                      <th className="p-4">Assigned Role</th>
                       <th className="p-4 text-right pr-6">Actions</th>
                     </tr>
                   </thead>
@@ -154,15 +150,6 @@ export default function MinistryDetails() {
                             </div>
                             <span className="ml-3 font-bold text-church-navy">{member.memberName}</span>
                           </div>
-                        </td>
-                        <td className="p-4">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold ${
-                            member.role?.toLowerCase().includes('leader') 
-                              ? 'bg-purple-100 text-purple-800' 
-                              : 'bg-blue-50 text-blue-700'
-                          }`}>
-                            {member.role || 'Member'}
-                          </span>
                         </td>
                         <td className="p-4 text-right pr-6 relative">
                           <button 
@@ -223,10 +210,6 @@ export default function MinistryDetails() {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-500">Total Members</span>
                 <span className="text-sm font-bold text-church-navy">{totalMembers}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500">Leaders</span>
-                <span className="text-sm font-bold text-church-navy">{leaders.length}</span>
               </div>
             </div>
           </div>

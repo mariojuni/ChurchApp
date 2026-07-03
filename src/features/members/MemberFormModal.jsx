@@ -2,10 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { useAuth } from '../../context/AuthContext';
 
 export default function MemberFormModal({ isOpen, onClose, member = null }) {
+  const { userProfile, currentUser } = useAuth();
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
+    middleName: '',
+    lastName: '',
     email: '',
     phone: '',
     role: 'member',
@@ -23,8 +27,14 @@ export default function MemberFormModal({ isOpen, onClose, member = null }) {
 
   useEffect(() => {
     if (member) {
+      const parts = (member.name || '').split(' ');
+      const fallbackFirst = parts[0] || '';
+      const fallbackLast = parts.length > 1 ? parts.slice(1).join(' ') : '';
+      
       setFormData({
-        name: member.name || '',
+        firstName: member.firstName || fallbackFirst,
+        middleName: member.middleName || '',
+        lastName: member.lastName || fallbackLast,
         email: member.email || '',
         phone: member.phone || '',
         role: member.role || 'member',
@@ -39,7 +49,9 @@ export default function MemberFormModal({ isOpen, onClose, member = null }) {
       });
     } else {
       setFormData({
-        name: '',
+        firstName: '',
+        middleName: '',
+        lastName: '',
         email: '',
         phone: '',
         role: 'member',
@@ -68,19 +80,27 @@ export default function MemberFormModal({ isOpen, onClose, member = null }) {
     setError('');
 
     try {
+      const computedName = [formData.firstName, formData.middleName, formData.lastName].filter(Boolean).join(' ');
+      const dataToSave = {
+        ...formData,
+        name: computedName
+      };
+
       if (member) {
         // Update existing member
         const docRef = doc(db, 'users', member.id);
         await updateDoc(docRef, {
-          ...formData,
-          updatedAt: serverTimestamp()
+          ...dataToSave,
+          updatedAt: serverTimestamp(),
+          updatedBy: currentUser?.uid || null
         });
       } else {
         // Add new member profile
         await addDoc(collection(db, 'users'), {
-          ...formData,
+          ...dataToSave,
           createdAt: serverTimestamp(),
-          churchId: 'casubiduan' 
+          createdBy: currentUser?.uid || null,
+          churchId: userProfile?.churchId || 'casubiduan' 
         });
       }
       onClose();
@@ -110,9 +130,19 @@ export default function MemberFormModal({ isOpen, onClose, member = null }) {
             <div>
               <h3 className="text-sm font-bold text-church-green uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">Personal Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-church-navy mb-1">Full Name *</label>
-                  <input type="text" name="name" required value={formData.name} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow" />
+                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-church-navy mb-1">First Name *</label>
+                    <input type="text" name="firstName" required value={formData.firstName} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-church-navy mb-1">Middle Name</label>
+                    <input type="text" name="middleName" value={formData.middleName} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-church-navy mb-1">Last Name *</label>
+                    <input type="text" name="lastName" required value={formData.lastName} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow" />
+                  </div>
                 </div>
                 
                 <div>
@@ -135,8 +165,8 @@ export default function MemberFormModal({ isOpen, onClose, member = null }) {
               <h3 className="text-sm font-bold text-church-green uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">Contact Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-church-navy mb-1">Email *</label>
-                  <input type="email" name="email" required value={formData.email} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow" />
+                  <label className="block text-sm font-medium text-church-navy mb-1">Email</label>
+                  <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow" />
                 </div>
                 
                 <div>

@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { useAuth } from '../../context/AuthContext';
 
 export default function MinistryFormModal({ isOpen, onClose, ministry = null }) {
+  const { userProfile } = useAuth();
+  
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -74,7 +77,7 @@ export default function MinistryFormModal({ isOpen, onClose, ministry = null }) 
           ...formData,
           members: [],
           createdAt: serverTimestamp(),
-          churchId: 'casubiduan' 
+          churchId: userProfile?.churchId || 'casubiduan' 
         });
       }
       onClose();

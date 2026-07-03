@@ -18,7 +18,17 @@ export function useAuth() {
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+  const [activeChurchId, setActiveChurchId] = useState(localStorage.getItem('activeChurchId') || null);
   const [loading, setLoading] = useState(true);
+
+  // Persist activeChurchId when it changes
+  useEffect(() => {
+    if (activeChurchId) {
+      localStorage.setItem('activeChurchId', activeChurchId);
+    } else {
+      localStorage.removeItem('activeChurchId');
+    }
+  }, [activeChurchId]);
 
   function signup(email, password) {
     return createUserWithEmailAndPassword(auth, email, password);
@@ -47,16 +57,25 @@ export function AuthProvider({ children }) {
           const docSnap = await getDoc(docRef);
           
           if (docSnap.exists()) {
-            setUserProfile(docSnap.data());
+            const data = docSnap.data();
+            setUserProfile(data);
+            
+            // If they don't have a saved workspace, use their primary church
+            if (!localStorage.getItem('activeChurchId')) {
+              setActiveChurchId(data.churchId);
+            }
           } else {
             setUserProfile(null);
+            setActiveChurchId(null);
           }
         } catch (error) {
           console.error("Error fetching user profile:", error);
           setUserProfile(null);
+          setActiveChurchId(null);
         }
       } else {
         setUserProfile(null);
+        setActiveChurchId(null);
       }
       
       setLoading(false);
@@ -65,9 +84,16 @@ export function AuthProvider({ children }) {
     return unsubscribe;
   }, []);
 
+  const profileWithActiveChurch = userProfile 
+    ? { ...userProfile, churchId: activeChurchId || userProfile.churchId } 
+    : null;
+
   const value = {
     currentUser,
-    userProfile,
+    userProfile: profileWithActiveChurch,
+    originalUserProfile: userProfile,
+    activeChurchId,
+    setActiveChurchId,
     signup,
     login,
     loginWithGoogle,

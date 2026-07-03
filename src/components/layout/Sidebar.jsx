@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { db } from '../../firebase';
 import { 
   Home, 
   Users, 
@@ -15,32 +17,51 @@ import {
   Shield,
   LayoutDashboard,
   ClipboardCheck,
-  Megaphone
+  Megaphone,
+  Building,
+  Activity,
+  CalendarDays,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const navItems = [
   { name: 'Dashboard', path: '/admin', icon: LayoutDashboard, roles: ['super_admin', 'church_admin', 'pastor', 'ministry_leader', 'finance_admin', 'secretary', 'viewer'] },
-  { name: 'Team', path: '/admin/members', icon: Users, roles: ['super_admin', 'church_admin', 'secretary', 'pastor', 'viewer'] },
-  { name: 'Attendance', path: '/admin/attendance', icon: ClipboardCheck, roles: ['super_admin', 'church_admin', 'secretary', 'pastor', 'viewer'] },
-  { name: 'Announcements', path: '/admin/announcements', icon: Megaphone, roles: ['super_admin', 'church_admin', 'secretary', 'pastor', 'viewer'] },
+  { name: 'Members', path: '/admin/members', icon: Users, roles: ['super_admin', 'church_admin', 'secretary', 'pastor', 'viewer'] },
   { name: 'Ministries', path: '/admin/ministries', icon: Shield, roles: ['super_admin', 'church_admin', 'pastor', 'ministry_leader', 'viewer'] },
   { name: 'Events', path: '/admin/events', icon: Calendar, roles: ['super_admin', 'church_admin', 'secretary', 'pastor', 'viewer'] },
+  { name: 'Scheduling', path: '/admin/schedules', icon: CalendarDays, roles: ['super_admin', 'church_admin', 'pastor', 'ministry_leader', 'viewer'] },
+  { name: 'Attendance', path: '/admin/attendance', icon: ClipboardCheck, roles: ['super_admin', 'church_admin', 'secretary', 'pastor'] },
+  { name: 'Sermons', path: '/admin/sermons', icon: BookOpen, roles: ['super_admin', 'church_admin', 'pastor', 'viewer'] },
+  { name: 'Announcements', path: '/admin/announcements', icon: Megaphone, roles: ['super_admin', 'church_admin', 'secretary', 'pastor', 'viewer'] },
+  { name: 'Prayer Requests', path: '/admin/prayer', icon: HeartHandshake, roles: ['super_admin', 'church_admin', 'pastor', 'viewer'] },
   { name: 'Giving', path: '/admin/giving', icon: CreditCard, roles: ['super_admin', 'church_admin', 'finance_admin', 'viewer'] },
   { name: 'Expenses', path: '/admin/expenses', icon: CreditCard, roles: ['super_admin', 'church_admin', 'finance_admin', 'viewer'] },
-  { name: 'Sermons', path: '/admin/sermons', icon: BookOpen, roles: ['super_admin', 'church_admin', 'pastor', 'viewer'] },
-  { name: 'Bible Plans', path: '/admin/bible', icon: BookOpen, roles: ['super_admin', 'church_admin', 'pastor', 'viewer'] },
-  { name: 'Prayer Wall', path: '/admin/prayer', icon: HeartHandshake, roles: ['super_admin', 'church_admin', 'pastor', 'viewer'] },
+  { name: 'Reports', path: '/admin/reports', icon: Activity, roles: ['super_admin', 'church_admin', 'pastor', 'finance_admin'] },
+  { name: 'Churches', path: '/admin/churches', icon: Building, roles: ['super_admin'] },
   { name: 'Settings', path: '/admin/settings', icon: Settings, roles: ['super_admin', 'church_admin', 'viewer'] },
 ];
 
 export default function Sidebar({ isOpen, setIsOpen }) {
-  const { userProfile } = useAuth();
+  const { activeChurchId, setActiveChurchId, originalUserProfile } = useAuth();
+  const [churches, setChurches] = useState([]);
+  const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
   
   // Basic fallback role if none is defined
-  const userRole = userProfile?.role?.toLowerCase() || 'viewer';
+  const userRole = originalUserProfile?.role?.toLowerCase() || 'viewer';
 
   const filteredNavItems = navItems.filter(item => item.roles.includes(userRole));
+
+  useEffect(() => {
+    if (userRole === 'super_admin') {
+      const fetchChurches = async () => {
+        const snap = await getDocs(query(collection(db, 'churches'), orderBy('name', 'asc')));
+        setChurches(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      };
+      fetchChurches();
+    }
+  }, [userRole]);
 
   return (
     <>
@@ -100,15 +121,56 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             })}
           </nav>
 
-          {/* User Profile */}
-          <div className="mt-auto p-4 m-4 bg-gray-50 rounded-2xl">
+          {/* User Profile & Tenant Switcher */}
+          <div className="mt-auto p-4 m-4 bg-gray-50 rounded-2xl relative">
+            {userRole === 'super_admin' && (
+              <div className="mb-4 pb-4 border-b border-gray-200">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Workspace</p>
+                <div className="relative">
+                  <button 
+                    onClick={() => setIsSwitcherOpen(!isSwitcherOpen)}
+                    className="w-full bg-white border border-gray-200 hover:border-church-green/50 text-church-navy text-sm rounded-xl px-3 py-2.5 font-bold flex items-center justify-between transition-colors shadow-sm"
+                  >
+                    <div className="flex items-center truncate">
+                      <div className="w-6 h-6 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center mr-2 shrink-0">
+                        <Building size={14} />
+                      </div>
+                      <span className="truncate">
+                        {churches.find(c => c.id === activeChurchId)?.name || 'Select Church'}
+                      </span>
+                    </div>
+                    <ChevronDown size={16} className={`text-gray-400 transition-transform ${isSwitcherOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  {isSwitcherOpen && (
+                    <div className="absolute bottom-full left-0 w-full mb-2 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50 overflow-hidden">
+                      <div className="max-h-48 overflow-y-auto">
+                        {churches.map(c => (
+                          <button
+                            key={c.id}
+                            onClick={() => {
+                              setActiveChurchId(c.id);
+                              setIsSwitcherOpen(false);
+                            }}
+                            className={`w-full flex items-center justify-between px-4 py-2.5 text-sm text-left transition-colors ${activeChurchId === c.id ? 'bg-church-green/5 text-church-green font-bold' : 'text-church-navy hover:bg-gray-50'}`}
+                          >
+                            <span className="truncate pr-2">{c.name}</span>
+                            {activeChurchId === c.id && <Check size={16} className="text-church-green shrink-0" />}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             <div className="flex items-center">
               <div className="w-10 h-10 rounded-full bg-church-green flex items-center justify-center text-white font-bold shadow-sm">
-                {userProfile?.name?.charAt(0).toUpperCase() || 'U'}
+                {originalUserProfile?.name?.charAt(0).toUpperCase() || 'U'}
               </div>
               <div className="ml-3 truncate">
                 <p className="text-sm font-bold text-church-navy truncate">
-                  {userProfile?.name || 'User'}
+                  {originalUserProfile?.name || 'User'}
                 </p>
                 <p className="text-xs text-church-slate uppercase font-medium">
                   {userRole.replace('_', ' ')}
