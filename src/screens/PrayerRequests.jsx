@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { Heart, Search, Filter, Plus, CheckCircle, X } from 'lucide-react';
+import { usePrayers } from '../hooks/usePrayers';
 import { db } from '../firebase';
 import { 
   collection, 
@@ -17,28 +18,10 @@ import { useAuth } from '../context/AuthContext';
 
 const PrayerRequests = () => {
   const { currentUser, userProfile } = useAuth();
-  const [requests, setRequests] = useState([]);
+  const { prayers: requests, loading } = usePrayers();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('Recent');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  
-  // Modal states removed as they are now handled globally in App.jsx
-
-  // Subscribe to real-time prayer requests from Firestore
-  useEffect(() => {
-    const q = query(collection(db, 'prayers'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setRequests(docs);
-    }, (error) => {
-      console.error("Error fetching prayer requests: ", error);
-    });
-
-    return () => unsubscribe();
-  }, []);
 
   // Format Firestore server timestamp to relative time string
   const formatTimeAgo = (timestamp) => {
