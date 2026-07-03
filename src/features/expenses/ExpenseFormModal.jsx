@@ -4,7 +4,7 @@ import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../firebase';
 
-const CHURCH_ID = 'casubiduan'; 
+const CHURCH_ID = 'YmEc6C69Xz4DKRQaQZBV'; 
 
 const CATEGORIES = [
   'Utilities',

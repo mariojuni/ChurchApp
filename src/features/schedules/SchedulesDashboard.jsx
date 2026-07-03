@@ -23,7 +23,7 @@ export default function SchedulesDashboard() {
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       let docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      docs = docs.filter(d => d.churchId === userProfile.churchId || (!d.churchId && userProfile.churchId === 'casubiduan'));
+      docs = docs.filter(d => d.churchId === userProfile.churchId || (!d.churchId && userProfile.churchId === 'YmEc6C69Xz4DKRQaQZBV'));
       docs.sort((a, b) => new Date(a.eventDate || 0) - new Date(b.eventDate || 0));
       
       setAssignments(docs);

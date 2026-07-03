@@ -16,7 +16,7 @@ export default function EventFormModal({ isOpen, onClose, event = null }) {
     title: '',
     description: '',
     date: '',
-    time: '',
+    startTime: '',
     endTime: '',
     location: '',
     category: EVENT_CATEGORIES[0],
@@ -35,7 +35,7 @@ export default function EventFormModal({ isOpen, onClose, event = null }) {
         title: event.title || '',
         description: event.description || '',
         date: event.date || '',
-        time: event.time || '',
+        startTime: event.startTime || '',
         endTime: event.endTime || '',
         location: event.location || '',
         category: event.category || EVENT_CATEGORIES[0],
@@ -50,7 +50,7 @@ export default function EventFormModal({ isOpen, onClose, event = null }) {
         title: '',
         description: '',
         date: '',
-        time: '',
+        startTime: '',
         endTime: '',
         location: '',
         category: EVENT_CATEGORIES[0],
@@ -92,7 +92,7 @@ export default function EventFormModal({ isOpen, onClose, event = null }) {
         await addDoc(collection(db, 'events'), {
           ...formData,
           createdAt: serverTimestamp(),
-          churchId: userProfile?.churchId || 'casubiduan'
+          churchId: userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV'
         });
       }
       onClose();
@@ -159,8 +159,8 @@ export default function EventFormModal({ isOpen, onClose, event = null }) {
               <label className="block text-sm font-medium text-church-navy mb-1">Start Time</label>
               <input 
                 type="time" 
-                name="time"
-                value={formData.time}
+                name="startTime"
+                value={formData.startTime}
                 onChange={handleChange}
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow" 
               />

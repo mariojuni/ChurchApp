@@ -25,6 +25,7 @@ export default function AssignmentFormModal({ isOpen, onClose, existingAssignmen
 
   const [loading, setLoading] = useState(false);
   const [conflictWarning, setConflictWarning] = useState('');
+  const [takenRoles, setTakenRoles] = useState([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -55,20 +56,20 @@ export default function AssignmentFormModal({ isOpen, onClose, existingAssignmen
       const fetchData = async () => {
         const eventsSnap = await getDocs(collection(db, 'events'));
         let evDocs = eventsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        evDocs = evDocs.filter(d => d.churchId === userProfile?.churchId || (!d.churchId && userProfile?.churchId === 'casubiduan'));
+        evDocs = evDocs.filter(d => d.churchId === userProfile?.churchId || (!d.churchId && userProfile?.churchId === 'YmEc6C69Xz4DKRQaQZBV'));
         setEvents(evDocs);
         
         const minSnap = await getDocs(collection(db, 'ministries'));
         let minDocs = minSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         minDocs = minDocs.filter(d => 
-          (d.churchId === userProfile?.churchId || (!d.churchId && userProfile?.churchId === 'casubiduan')) &&
+          (d.churchId === userProfile?.churchId || (!d.churchId && userProfile?.churchId === 'YmEc6C69Xz4DKRQaQZBV')) &&
           d.status === 'Active'
         );
         setMinistries(minDocs);
         
         const membersSnap = await getDocs(collection(db, 'users'));
         let memDocs = membersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        memDocs = memDocs.filter(d => d.churchId === userProfile?.churchId || (!d.churchId && userProfile?.churchId === 'casubiduan'));
+        memDocs = memDocs.filter(d => d.churchId === userProfile?.churchId || (!d.churchId && userProfile?.churchId === 'YmEc6C69Xz4DKRQaQZBV'));
         
         // Format names nicely for search
         memDocs = memDocs.map(d => {
@@ -120,6 +121,29 @@ export default function AssignmentFormModal({ isOpen, onClose, existingAssignmen
     };
     checkConflicts();
   }, [selectedMember, activeEvent, events]);
+
+  useEffect(() => {
+    if (selectedEvent && selectedMinistry) {
+      const fetchTakenRoles = async () => {
+        const q = query(
+          collection(db, 'ministryAssignments'),
+          where('eventId', '==', selectedEvent),
+          where('ministryId', '==', selectedMinistry)
+        );
+        const snap = await getDocs(q);
+        const roles = snap.docs.map(d => d.data().roleName);
+        
+        if (existingAssignment) {
+          setTakenRoles(roles.filter(r => r !== existingAssignment.roleName));
+        } else {
+          setTakenRoles(roles);
+        }
+      };
+      fetchTakenRoles();
+    } else {
+      setTakenRoles([]);
+    }
+  }, [selectedEvent, selectedMinistry, existingAssignment]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -224,7 +248,7 @@ export default function AssignmentFormModal({ isOpen, onClose, existingAssignmen
                   required
                 >
                   <option value="">-- Select Role --</option>
-                  {activeMinistry?.roles?.map(r => (
+                  {activeMinistry?.roles?.filter(r => !takenRoles.includes(r)).map(r => (
                     <option key={r} value={r}>{r}</option>
                   ))}
                 </select>

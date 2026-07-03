@@ -4,7 +4,7 @@ import { db } from '../../firebase';
 import { Plus, BookOpen, Edit, Trash2, Calendar, Clock, MoreVertical } from 'lucide-react';
 import BiblePlanFormModal from './BiblePlanFormModal';
 
-const CHURCH_ID = 'casubiduan';
+const CHURCH_ID = 'YmEc6C69Xz4DKRQaQZBV';
 
 export default function BiblePlans() {
   const [plans, setPlans] = useState([]);

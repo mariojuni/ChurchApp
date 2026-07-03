@@ -115,7 +115,7 @@ export default function AnnouncementFormModal({ isOpen, onClose, announcement })
         await updateDoc(doc(db, 'announcements', announcement.id), payload);
       } else {
         payload.createdAt = serverTimestamp();
-        payload.churchId = 'casubiduan';
+        payload.churchId = 'YmEc6C69Xz4DKRQaQZBV';
         await addDoc(collection(db, 'announcements'), payload);
       }
       onClose();

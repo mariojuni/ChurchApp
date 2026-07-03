@@ -27,7 +27,7 @@ export default function EventsList() {
         ...doc.data()
       }));
       // Legacy support for multi-tenant
-      docs = docs.filter(d => d.churchId === userProfile.churchId || (!d.churchId && userProfile.churchId === 'casubiduan'));
+      docs = docs.filter(d => d.churchId === userProfile.churchId || (!d.churchId && userProfile.churchId === 'YmEc6C69Xz4DKRQaQZBV'));
       // Sort in memory
       docs.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
       setEvents(docs);
@@ -145,7 +145,7 @@ export default function EventsList() {
                   )}
                   <div className="flex items-center">
                     <Clock size={14} className="mr-1.5 opacity-70" />
-                    {event.time ? (event.endTime ? `${event.time} - ${event.endTime}` : event.time) : 'TBD'}
+                    {(event.startTime || event.time) ? (event.endTime ? `${(event.startTime || event.time)} - ${event.endTime}` : (event.startTime || event.time)) : 'TBD'}
                   </div>
                   <div className="flex items-center">
                     <MapPin size={14} className="mr-1.5 opacity-70" />

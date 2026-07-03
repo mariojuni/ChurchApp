@@ -52,7 +52,7 @@ export default function EventDetails() {
           <h1 className="text-3xl font-bold text-church-navy">{event.title}</h1>
           <div className="flex items-center text-sm text-church-slate mt-1 space-x-4">
             <span className="flex items-center"><Calendar size={14} className="mr-1" /> {event.date || 'TBD'}</span>
-            <span className="flex items-center"><Clock size={14} className="mr-1" /> {event.time || 'TBD'}</span>
+            <span className="flex items-center"><Clock size={14} className="mr-1" /> {event.startTime || event.time || 'TBD'}</span>
             <span className="flex items-center"><MapPin size={14} className="mr-1" /> {event.location || 'TBD'}</span>
           </div>
         </div>

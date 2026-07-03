@@ -37,7 +37,7 @@ export default function MembersList() {
       }));
       
       // Filter in memory to support legacy records that don't have a churchId yet
-      docs = docs.filter(d => d.churchId === userProfile.churchId || (!d.churchId && userProfile.churchId === 'casubiduan'));
+      docs = docs.filter(d => d.churchId === userProfile.churchId || (!d.churchId && userProfile.churchId === 'YmEc6C69Xz4DKRQaQZBV'));
       
       // Format names: First Name Middle Initial Last Name (Title Case)
       docs = docs.map(d => {
@@ -240,7 +240,7 @@ export default function MembersList() {
           membershipStatus: parsedStatus,
           baptismStatus: parsedBaptism,
           notes: remarks,
-          churchId: userProfile?.churchId || 'casubiduan',
+          churchId: userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV',
           createdAt: new Date()
         };
 

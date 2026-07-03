@@ -29,7 +29,7 @@ export default function MinistriesList() {
         ...doc.data()
       }));
       // Filter by the active workspace/church
-      docs = docs.filter(d => d.churchId === userProfile.churchId || (!d.churchId && userProfile.churchId === 'casubiduan'));
+      docs = docs.filter(d => d.churchId === userProfile.churchId || (!d.churchId && userProfile.churchId === 'YmEc6C69Xz4DKRQaQZBV'));
       
       setMinistries(docs);
       setLoading(false);

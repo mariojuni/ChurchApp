@@ -4,7 +4,7 @@ import { db } from '../../firebase';
 import { Plus, HeartHandshake, CheckCircle, XCircle, Trash2, Edit, Check, Shield } from 'lucide-react';
 import PrayerRequestModal from './PrayerRequestModal';
 
-const CHURCH_ID = 'casubiduan';
+const CHURCH_ID = 'YmEc6C69Xz4DKRQaQZBV';
 
 export default function PrayerModeration() {
   const [requests, setRequests] = useState([]);

@@ -4,7 +4,7 @@ import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../firebase';
 import { Save, Upload, MapPin, Phone, Mail, Clock, Plus, Trash2, Globe } from 'lucide-react';
 
-const CHURCH_ID = 'casubiduan';
+const CHURCH_ID = 'YmEc6C69Xz4DKRQaQZBV';
 
 export default function SettingsProfile() {
   const [loading, setLoading] = useState(true);

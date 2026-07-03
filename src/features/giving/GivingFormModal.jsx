@@ -99,7 +99,7 @@ export default function GivingFormModal({ isOpen, onClose, record = null }) {
           ...payload,
           createdAt: serverTimestamp(),
           createdBy: currentUser?.uid || null,
-          churchId: userProfile?.churchId || 'casubiduan' 
+          churchId: userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV' 
         });
       }
       onClose();

@@ -2,9 +2,73 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { doc, onSnapshot, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { ArrowLeft, Users, Shield, Calendar, Plus, MoreVertical, Trash2, Edit } from 'lucide-react';
+import { ArrowLeft, Users, Shield, Calendar, Plus, MoreVertical, Trash2, Edit, BookOpen, Monitor, Mic, Guitar, Drum, Piano, GraduationCap, Music, Heart, Star, Settings } from 'lucide-react';
 import AssignMemberModal from './AssignMemberModal';
 import MinistryFormModal from './MinistryFormModal';
+
+const normalizeRole = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const getRoleIcon = (roleName) => {
+  const norm = normalizeRole(roleName);
+  switch(norm) {
+    case 'openingprayer': return <Users size={16} color="#818CF8" />;
+    case 'tithesofferingprayer': return <BookOpen size={16} color="#4D8BFF" />;
+    case 'techaudio': 
+    case 'tech': 
+    case 'audio': return <Monitor size={16} color="#6B7280" />;
+    case 'presider': return <Users size={16} color="#FF6596" />;
+    case 'scripturereading': return <BookOpen size={16} color="#F59E0B" />;
+    case 'preacher': return <Mic size={16} color="#FF6596" />;
+    case 'vocalist': return <Mic size={16} color="#818CF8" />;
+    case 'bassguitar': return <Guitar size={16} color="#4D8BFF" />;
+    case 'drummer': return <Drum size={16} color="#EF4444" />;
+    case 'piano': return <Piano size={16} color="#10B981" />;
+    case 'electricguitar': return <Guitar size={16} color="#F59E0B" />;
+    case 'kids': return <GraduationCap size={16} color="#F59E0B" />;
+    case 'youth': return <GraduationCap size={16} color="#4D8BFF" />;
+    case 'adults': return <GraduationCap size={16} color="#10B981" />;
+    default: return <Users size={16} color="#9CA3AF" />;
+  }
+};
+
+const getRoleBg = (roleName) => {
+  const norm = normalizeRole(roleName);
+  switch(norm) {
+    case 'openingprayer': return '#E0E7FF';
+    case 'tithesofferingprayer': return '#E8F0FF';
+    case 'techaudio': 
+    case 'tech': 
+    case 'audio': return '#F3F4F6';
+    case 'presider': return '#FFE8F0';
+    case 'scripturereading': return '#FEF3C7';
+    case 'preacher': return '#FFE8F0';
+    case 'vocalist': return '#E0E7FF';
+    case 'bassguitar': return '#E8F0FF';
+    case 'drummer': return '#FEE2E2';
+    case 'piano': return '#D1FAE5';
+    case 'electricguitar': return '#FEF3C7';
+    case 'kids': return '#FEF3C7';
+    case 'youth': return '#E8F0FF';
+    case 'adults': return '#D1FAE5';
+    default: return '#F3F4F6';
+  }
+};
+
+const AVAILABLE_ICONS = [
+  { name: 'Users', Icon: Users },
+  { name: 'Shield', Icon: Shield },
+  { name: 'Mic', Icon: Mic },
+  { name: 'Monitor', Icon: Monitor },
+  { name: 'BookOpen', Icon: BookOpen },
+  { name: 'Guitar', Icon: Guitar },
+  { name: 'Drum', Icon: Drum },
+  { name: 'Piano', Icon: Piano },
+  { name: 'GraduationCap', Icon: GraduationCap },
+  { name: 'Music', Icon: Music },
+  { name: 'Heart', Icon: Heart },
+  { name: 'Star', Icon: Star },
+  { name: 'Settings', Icon: Settings },
+];
 
 export default function MinistryDetails() {
   const { id } = useParams();
@@ -217,11 +281,24 @@ export default function MinistryDetails() {
           <div className="bg-white rounded-3xl shadow-church-soft border border-gray-100 p-6">
             <h3 className="text-sm font-bold text-church-green uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">Available Roles</h3>
             <div className="flex flex-wrap gap-2">
-              {ministry.roles?.map(role => (
-                <span key={role} className="px-2 py-1 bg-gray-50 border border-gray-200 text-gray-600 rounded text-xs font-medium">
-                  {role}
-                </span>
-              ))}
+              {ministry.roles?.map(role => {
+                const customDetails = ministry.roleDetails?.[role];
+                const bg = customDetails?.color || getRoleBg(role);
+                const iconName = customDetails?.icon;
+                const SelectedIconComp = iconName ? AVAILABLE_ICONS.find(i => i.name === iconName)?.Icon : null;
+                const iconNode = SelectedIconComp ? <SelectedIconComp size={16} color="#6B7280" /> : getRoleIcon(role);
+
+                return (
+                  <div 
+                    key={role} 
+                    className="flex items-center px-3 py-1.5 rounded-full text-sm font-medium shadow-sm border border-black/5"
+                    style={{ backgroundColor: bg }}
+                  >
+                    <span className="mr-2 opacity-80">{iconNode}</span>
+                    <span className="text-gray-800">{role}</span>
+                  </div>
+                );
+              })}
               {(!ministry.roles || ministry.roles.length === 0) && (
                 <span className="text-sm text-gray-400 italic">No custom roles defined.</span>
               )}

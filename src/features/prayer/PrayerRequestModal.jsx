@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { collection, doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
 
-const CHURCH_ID = 'casubiduan'; 
+const CHURCH_ID = 'YmEc6C69Xz4DKRQaQZBV'; 
 
 export default function PrayerRequestModal({ isOpen, onClose, request = null }) {
   const [formData, setFormData] = useState({

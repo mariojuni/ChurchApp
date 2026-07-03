@@ -42,7 +42,7 @@ export default function AttendanceDashboard() {
             visitors: 0
           },
           createdAt: serverTimestamp(),
-          churchId: 'casubiduan'
+          churchId: 'YmEc6C69Xz4DKRQaQZBV'
         });
         navigate(`/admin/attendance/${newDoc.id}`);
       } catch (err) {

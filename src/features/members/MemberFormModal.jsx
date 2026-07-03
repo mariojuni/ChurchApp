@@ -100,7 +100,7 @@ export default function MemberFormModal({ isOpen, onClose, member = null }) {
           ...dataToSave,
           createdAt: serverTimestamp(),
           createdBy: currentUser?.uid || null,
-          churchId: userProfile?.churchId || 'casubiduan' 
+          churchId: userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV' 
         });
       }
       onClose();

@@ -4,7 +4,7 @@ import { collection, doc, setDoc, updateDoc, serverTimestamp } from 'firebase/fi
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../firebase';
 
-const CHURCH_ID = 'casubiduan'; // Hardcoded for this spec
+const CHURCH_ID = 'YmEc6C69Xz4DKRQaQZBV'; // Hardcoded for this spec
 const TABS = ['Details', 'Media', 'Publishing'];
 
 export default function SermonFormModal({ isOpen, onClose, sermon = null }) {

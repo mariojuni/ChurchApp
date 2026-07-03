@@ -3,7 +3,7 @@ import { X, FileText, Check } from 'lucide-react';
 import { collection, doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
 
-const CHURCH_ID = 'casubiduan'; 
+const CHURCH_ID = 'YmEc6C69Xz4DKRQaQZBV'; 
 
 // First 7 Days of TGC Two-Year Plan
 const TGC_TEMPLATE_DAYS = [

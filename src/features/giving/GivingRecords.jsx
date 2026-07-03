@@ -26,7 +26,7 @@ export default function GivingRecords() {
       }));
       
       // Support legacy data
-      docs = docs.filter(d => d.churchId === userProfile.churchId || (!d.churchId && userProfile.churchId === 'casubiduan'));
+      docs = docs.filter(d => d.churchId === userProfile.churchId || (!d.churchId && userProfile.churchId === 'YmEc6C69Xz4DKRQaQZBV'));
       // Sort in memory (descending by date)
       docs.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
       setRecords(docs);

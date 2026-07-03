@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 
 export default function DashboardOverview() {
   const { userProfile } = useAuth();
-  const CHURCH_ID = userProfile?.churchId || 'casubiduan';
+  const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
   
   const [stats, setStats] = useState({
     members: 0,
@@ -29,14 +29,14 @@ export default function DashboardOverview() {
         const membersSnap = await getDocs(collection(db, 'users'));
         const membersCount = membersSnap.docs.filter(d => {
           const data = d.data();
-          return data.churchId === CHURCH_ID || (!data.churchId && CHURCH_ID === 'casubiduan');
+          return data.churchId === CHURCH_ID || (!data.churchId && CHURCH_ID === 'YmEc6C69Xz4DKRQaQZBV');
         }).length;
 
         // 2. Fetch recent giving for "This Week"
         const givingSnap = await getDocs(collection(db, 'giving'));
         const givingDocs = givingSnap.docs.filter(d => {
           const data = d.data();
-          return data.churchId === CHURCH_ID || (!data.churchId && CHURCH_ID === 'casubiduan');
+          return data.churchId === CHURCH_ID || (!data.churchId && CHURCH_ID === 'YmEc6C69Xz4DKRQaQZBV');
         });
         
         const now = new Date();
@@ -72,7 +72,7 @@ export default function DashboardOverview() {
         const eventsSnap = await getDocs(collection(db, 'events'));
         const allEvents = eventsSnap.docs
           .map(d => ({ id: d.id, ...d.data() }))
-          .filter(d => d.churchId === CHURCH_ID || (!d.churchId && CHURCH_ID === 'casubiduan'));
+          .filter(d => d.churchId === CHURCH_ID || (!d.churchId && CHURCH_ID === 'YmEc6C69Xz4DKRQaQZBV'));
         const upcomingEvents = allEvents
           .filter(e => e.date) // ensure it has a date
           .sort((a, b) => new Date(a.date) - new Date(b.date))
@@ -83,7 +83,7 @@ export default function DashboardOverview() {
         const attendanceSnap = await getDocs(query(collection(db, 'attendance_sessions'), orderBy('date', 'desc')));
         const validAttendance = attendanceSnap.docs
           .map(d => d.data())
-          .filter(d => d.churchId === CHURCH_ID || (!d.churchId && CHURCH_ID === 'casubiduan'));
+          .filter(d => d.churchId === CHURCH_ID || (!d.churchId && CHURCH_ID === 'YmEc6C69Xz4DKRQaQZBV'));
           
         let recentAtt = 0;
         if (validAttendance.length > 0) {

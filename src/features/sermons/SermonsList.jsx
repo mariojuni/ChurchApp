@@ -4,7 +4,7 @@ import { db } from '../../firebase';
 import { Plus, BookOpen, Edit, Trash2, Calendar, User, Video, Headphones, FileText, MoreVertical, Globe, Lock } from 'lucide-react';
 import SermonFormModal from './SermonFormModal';
 
-const CHURCH_ID = 'casubiduan'; // Hardcoded for this spec
+const CHURCH_ID = 'YmEc6C69Xz4DKRQaQZBV'; // Hardcoded for this spec
 
 export default function SermonsList() {
   const [sermons, setSermons] = useState([]);

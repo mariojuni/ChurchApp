@@ -4,7 +4,7 @@ import { db } from '../../firebase';
 import { Plus, Receipt, Edit, Trash2, ArrowUpRight, TrendingDown } from 'lucide-react';
 import ExpenseFormModal from './ExpenseFormModal';
 
-const CHURCH_ID = 'casubiduan';
+const CHURCH_ID = 'YmEc6C69Xz4DKRQaQZBV';
 
 export default function ExpensesList() {
   const [expenses, setExpenses] = useState([]);
