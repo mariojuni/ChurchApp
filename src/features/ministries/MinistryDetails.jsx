@@ -70,6 +70,17 @@ const AVAILABLE_ICONS = [
   { name: 'Settings', Icon: Settings },
 ];
 
+const ICON_COLORS = {
+  '#E0E7FF': '#818CF8', // Indigo
+  '#E8F0FF': '#4D8BFF', // Blue
+  '#F3F4F6': '#6B7280', // Gray
+  '#FFE8F0': '#FF6596', // Pink
+  '#FEF3C7': '#F59E0B', // Amber
+  '#FEE2E2': '#EF4444', // Red
+  '#D1FAE5': '#10B981', // Emerald
+  '#F3EEFF': '#8B6FE8', // Purple
+};
+
 export default function MinistryDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -285,8 +296,9 @@ export default function MinistryDetails() {
                 const customDetails = ministry.roleDetails?.[role];
                 const bg = customDetails?.color || getRoleBg(role);
                 const iconName = customDetails?.icon;
+                const iconColor = ICON_COLORS[bg] || '#6B7280';
                 const SelectedIconComp = iconName ? AVAILABLE_ICONS.find(i => i.name === iconName)?.Icon : null;
-                const iconNode = SelectedIconComp ? <SelectedIconComp size={16} color="#6B7280" /> : getRoleIcon(role);
+                const iconNode = SelectedIconComp ? <SelectedIconComp size={16} color={iconColor} /> : getRoleIcon(role);
 
                 return (
                   <div 
