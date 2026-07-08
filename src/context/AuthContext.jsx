@@ -4,10 +4,12 @@ import {
   signInWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged,
-  signInWithPopup
+  signInWithPopup,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, googleProvider, db } from '../firebase';
+import { isAuthorizedAdminUser } from '../utils/adminRoles';
 
 const AuthContext = createContext();
 
@@ -54,7 +56,7 @@ export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [activeChurchId, setActiveChurchId] = useState(localStorage.getItem('activeChurchId') || null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Persist activeChurchId when it changes
   useEffect(() => {
@@ -78,34 +80,37 @@ export function AuthProvider({ children }) {
   }
 
   function logout() {
+    localStorage.removeItem('activeChurchId');
     return signOut(auth);
+  }
+
+  function sendPasswordReset(email) {
+    return sendPasswordResetEmail(auth, email);
   }
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
-      
+
       if (user) {
-        // Fetch extended user profile from Firestore
         try {
-          const docRef = doc(db, "users", user.uid);
+          const docRef = doc(db, 'users', user.uid);
           const docSnap = await getDoc(docRef);
-          
+
           if (docSnap.exists()) {
             const data = docSnap.data();
             const normalized = normalizeProfile(user.uid, data);
             setUserProfile(normalized);
-            
-            // If they don't have a saved workspace, use their primary church
+
             if (!localStorage.getItem('activeChurchId')) {
-              setActiveChurchId(data.churchId);
+              setActiveChurchId(data.churchId || null);
             }
           } else {
             setUserProfile(null);
             setActiveChurchId(null);
           }
         } catch (error) {
-          console.error("Error fetching user profile:", error);
+          console.error('Error fetching user profile:', error);
           setUserProfile(null);
           setActiveChurchId(null);
         }
@@ -113,32 +118,38 @@ export function AuthProvider({ children }) {
         setUserProfile(null);
         setActiveChurchId(null);
       }
-      
-      setLoading(false);
+
+      setIsLoading(false);
     });
 
     return unsubscribe;
   }, []);
 
-  const profileWithActiveChurch = userProfile 
-    ? { ...userProfile, churchId: activeChurchId || userProfile.churchId || 'YmEc6C69Xz4DKRQaQZBV' } 
+  const profileWithActiveChurch = userProfile
+    ? { ...userProfile, churchId: activeChurchId || userProfile.churchId }
     : null;
+
+  const isAuthorizedAdmin = isAuthorizedAdminUser(profileWithActiveChurch);
 
   const value = {
     currentUser,
     userProfile: profileWithActiveChurch,
+    userAccount: profileWithActiveChurch,        // alias for clarity
     originalUserProfile: userProfile,
     activeChurchId,
     setActiveChurchId,
+    isLoading,
+    isAuthorizedAdmin,
     signup,
     login,
     loginWithGoogle,
-    logout
+    logout,
+    sendPasswordReset,
   };
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {!isLoading && children}
     </AuthContext.Provider>
   );
 }
