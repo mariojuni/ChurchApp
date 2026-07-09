@@ -22,7 +22,8 @@ import {
   Activity,
   CalendarDays,
   ChevronDown,
-  Check
+  Check,
+  BookOpenCheck
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -35,6 +36,7 @@ const navItems = [
   { name: 'Attendance', path: '/admin/attendance', icon: ClipboardCheck, roles: ['super_admin', 'church_admin', 'secretary', 'pastor'] },
   { name: 'Sermons', path: '/admin/sermons', icon: BookOpen, roles: ['super_admin', 'church_admin', 'pastor', 'viewer'] },
   { name: 'Bible Plans', path: '/admin/bible', icon: BookOpen, roles: ['super_admin', 'church_admin', 'pastor', 'viewer'] },
+  { name: 'Discipleship', path: '/admin/discipleship', icon: BookOpenCheck, roles: ['super_admin', 'church_admin', 'pastor', 'viewer'] },
   { name: 'Announcements', path: '/admin/announcements', icon: Megaphone, roles: ['super_admin', 'church_admin', 'secretary', 'pastor', 'viewer'] },
   { name: 'Prayer Requests', path: '/admin/prayer', icon: HeartHandshake, roles: ['super_admin', 'church_admin', 'pastor', 'viewer'] },
   { name: 'Giving', path: '/admin/giving', icon: CreditCard, roles: ['super_admin', 'church_admin', 'finance_admin', 'viewer'] },

@@ -25,6 +25,8 @@ import AnnouncementsList from './features/announcements/AnnouncementsList';
 import ChurchesDashboard from './features/superadmin/ChurchesDashboard';
 import ReportsDashboard from './features/reports/ReportsDashboard';
 import SchedulesDashboard from './features/schedules/SchedulesDashboard';
+import DiscipleshipPlans from './features/discipleship/DiscipleshipPlans';
+import DiscipleshipPlanDetail from './features/discipleship/DiscipleshipPlanDetail';
 
 function AppRoutes() {
   const { currentUser } = useAuth();
@@ -176,6 +178,24 @@ function AppRoutes() {
             element={
               <RoleGuard allowedRoles={['super_admin', 'church_admin', 'pastor']}>
                 <BiblePlans />
+              </RoleGuard>
+            } 
+          />
+          
+          <Route 
+            path="discipleship" 
+            element={
+              <RoleGuard allowedRoles={['super_admin', 'church_admin', 'pastor']}>
+                <DiscipleshipPlans />
+              </RoleGuard>
+            } 
+          />
+
+          <Route 
+            path="discipleship/:id" 
+            element={
+              <RoleGuard allowedRoles={['super_admin', 'church_admin', 'pastor']}>
+                <DiscipleshipPlanDetail />
               </RoleGuard>
             } 
           />
