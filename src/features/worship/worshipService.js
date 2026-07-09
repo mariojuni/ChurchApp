@@ -41,6 +41,82 @@ export const deleteSong = async (id) => {
   await deleteDoc(doc(db, 'songs', id));
 };
 
+// Song Versions
+export const createSongVersion = async (versionData) => {
+  const docRef = await addDoc(collection(db, 'songVersions'), {
+    ...versionData,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  });
+  return docRef.id;
+};
+
+// Duplicate Check
+export const checkDuplicateSong = async (churchId, title, ccliSongNumber) => {
+  if (!churchId || (!title && !ccliSongNumber)) return [];
+  
+  // Firestore doesn't support OR queries across different fields perfectly without compound queries, 
+  // so we fetch by churchId and filter in memory, or we can fetch by title separately.
+  // We'll query by churchId and title first.
+  const qTitle = query(
+    collection(db, 'songs'),
+    where('churchId', '==', churchId),
+    where('title', '==', title)
+  );
+  const snapshotTitle = await getDocs(qTitle);
+  let duplicates = snapshotTitle.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+  if (ccliSongNumber) {
+    const qCcli = query(
+      collection(db, 'songs'),
+      where('churchId', '==', churchId),
+      where('ccliSongNumber', '==', ccliSongNumber)
+    );
+    const snapshotCcli = await getDocs(qCcli);
+    snapshotCcli.docs.forEach(doc => {
+      if (!duplicates.find(d => d.id === doc.id)) {
+        duplicates.push({ id: doc.id, ...doc.data() });
+      }
+    });
+  }
+
+  return duplicates;
+};
+
+// Import Settings
+export const getSongImportSettings = async (churchId) => {
+  if (!churchId) return null;
+  const q = query(
+    collection(db, 'songImportSettings'),
+    where('churchId', '==', churchId)
+  );
+  const snapshot = await getDocs(q);
+  if (!snapshot.empty) {
+    return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+  }
+  return null;
+};
+
+export const updateSongImportSettings = async (churchId, settingsData) => {
+  const existing = await getSongImportSettings(churchId);
+  if (existing) {
+    const docRef = doc(db, 'songImportSettings', existing.id);
+    await updateDoc(docRef, {
+      ...settingsData,
+      updatedAt: new Date().toISOString()
+    });
+    return existing.id;
+  } else {
+    const docRef = await addDoc(collection(db, 'songImportSettings'), {
+      churchId,
+      ...settingsData,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+    return docRef.id;
+  }
+};
+
 // Setlists
 export const getSetlists = async (churchId) => {
   const q = query(

@@ -30,6 +30,8 @@ import DiscipleshipPlanDetail from './features/discipleship/DiscipleshipPlanDeta
 import SongsList from './features/worship/SongsList';
 import SetlistsList from './features/worship/SetlistsList';
 import SetlistDetails from './features/worship/SetlistDetails';
+import ImportSettingsPage from './features/worship/ImportSettingsPage';
+import ImportSongPage from './features/worship/ImportSongPage';
 
 function AppRoutes() {
   const { currentUser } = useAuth();
@@ -181,6 +183,24 @@ function AppRoutes() {
             element={
               <RoleGuard allowedRoles={['super_admin', 'church_admin', 'pastor', 'ministry_leader', 'viewer']}>
                 <SongsList />
+              </RoleGuard>
+            } 
+          />
+          
+          <Route 
+            path="worship/songs/import" 
+            element={
+              <RoleGuard allowedRoles={['super_admin', 'church_admin', 'pastor', 'ministry_leader']}>
+                <ImportSongPage />
+              </RoleGuard>
+            } 
+          />
+          
+          <Route 
+            path="worship/songs/import/settings" 
+            element={
+              <RoleGuard allowedRoles={['super_admin', 'church_admin']}>
+                <ImportSettingsPage />
               </RoleGuard>
             } 
           />

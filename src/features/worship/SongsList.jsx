@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Music, Edit, Trash2, Search, Filter } from 'lucide-react';
+import { Plus, Music, Edit, Trash2, Search, Filter, Upload, Settings } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { getSongs, deleteSong } from './worshipService';
 import { useAuth } from '../../context/AuthContext';
 import SongFormModal from './SongFormModal';
 
 export default function SongsList() {
+  const navigate = useNavigate();
   const { userProfile } = useAuth();
   const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,13 +60,29 @@ export default function SongsList() {
           <h1 className="text-3xl font-bold text-church-navy">Songs & Lyrics</h1>
           <p className="text-sm text-church-slate mt-1">Manage worship songs, lyrics, and arrangements.</p>
         </div>
-        <button 
-          onClick={handleAddClick}
-          className="flex items-center px-5 py-2.5 bg-church-green text-white rounded-full shadow-md text-sm font-medium hover:bg-church-green/90 transition-opacity"
-        >
-          <Plus size={18} className="mr-2" />
-          Add Song
-        </button>
+        <div className="flex space-x-3">
+          <button 
+            onClick={() => navigate('/admin/worship/songs/import/settings')}
+            className="flex items-center px-4 py-2.5 bg-white border border-gray-200 text-church-navy rounded-full shadow-sm text-sm font-medium hover:bg-gray-50 transition-colors"
+            title="Import Settings"
+          >
+            <Settings size={18} />
+          </button>
+          <button 
+            onClick={() => navigate('/admin/worship/songs/import')}
+            className="flex items-center px-4 py-2.5 bg-white border border-gray-200 text-church-navy rounded-full shadow-sm text-sm font-medium hover:bg-gray-50 transition-colors"
+          >
+            <Upload size={18} className="mr-2" />
+            Import PDF
+          </button>
+          <button 
+            onClick={handleAddClick}
+            className="flex items-center px-5 py-2.5 bg-church-green text-white rounded-full shadow-md text-sm font-medium hover:bg-church-green/90 transition-opacity"
+          >
+            <Plus size={18} className="mr-2" />
+            Add Song
+          </button>
+        </div>
       </div>
 
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center">
@@ -122,8 +140,8 @@ export default function SongsList() {
                         <Music size={20} />
                       </div>
                       <div className="ml-4">
-                        <div className="text-sm font-medium text-church-navy">{song.title}</div>
-                        <div className="text-sm text-gray-500">{song.artist || 'Unknown Artist'}</div>
+                        <div className="font-semibold text-church-navy">{song.title}</div>
+                        <div className="text-sm text-gray-500">{song.artist || song.artistName || song.bandName || song.composer || 'Unknown Artist'}</div>
                       </div>
                     </div>
                   </td>
@@ -142,8 +160,13 @@ export default function SongsList() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${song.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                      {song.status === 'active' ? 'Active' : 'Archived'}
+                    <span className={`px-3 py-1 inline-flex text-xs font-semibold rounded-full ${
+                      song.status === 'active' ? 'bg-green-100 text-green-800' : 
+                      song.status === 'draft' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {song.status === 'active' ? 'Active' : 
+                       song.status === 'draft' ? 'Draft' : 'Archived'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

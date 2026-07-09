@@ -8,14 +8,18 @@ export default function SongFormModal({ isOpen, onClose, song, onSaved }) {
   const [formData, setFormData] = useState({
     title: '',
     artist: '',
+    composer: '',
     defaultKey: '',
+    originalKey: '',
     tempoBpm: '',
+    timeSignature: '',
     tags: '',
     status: 'active',
     allowPublicLyrics: false,
     lyrics: '',
     chordChart: '',
-    copyrightInfo: ''
+    copyrightInfo: '',
+    ccliSongNumber: ''
   });
   const [saving, setSaving] = useState(false);
 
@@ -23,28 +27,36 @@ export default function SongFormModal({ isOpen, onClose, song, onSaved }) {
     if (song) {
       setFormData({
         title: song.title || '',
-        artist: song.artist || '',
+        artist: song.artist || song.artistName || song.bandName || '',
+        composer: song.composer || '',
         defaultKey: song.defaultKey || '',
+        originalKey: song.originalKey || '',
         tempoBpm: song.tempoBpm || '',
+        timeSignature: song.timeSignature || '',
         tags: song.tags ? song.tags.join(', ') : '',
         status: song.status || 'active',
         allowPublicLyrics: song.allowPublicLyrics || false,
         lyrics: song.lyrics || '',
         chordChart: song.chordChart || '',
-        copyrightInfo: song.copyrightInfo || ''
+        copyrightInfo: song.copyrightInfo || song.copyrightOwner || '',
+        ccliSongNumber: song.ccliSongNumber || ''
       });
     } else {
       setFormData({
         title: '',
         artist: '',
+        composer: '',
         defaultKey: '',
+        originalKey: '',
         tempoBpm: '',
+        timeSignature: '',
         tags: '',
         status: 'active',
         allowPublicLyrics: false,
         lyrics: '',
         chordChart: '',
-        copyrightInfo: ''
+        copyrightInfo: '',
+        ccliSongNumber: ''
       });
     }
   }, [song, isOpen]);
@@ -173,15 +185,27 @@ export default function SongFormModal({ isOpen, onClose, song, onSaved }) {
                   className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-church-green focus:ring-1 focus:ring-church-green" 
                 />
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-church-navy mb-2">Artist / Composer</label>
-                <input 
-                  type="text" 
-                  name="artist" 
-                  value={formData.artist} 
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-church-green focus:ring-1 focus:ring-church-green" 
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-church-navy mb-2">Artist / Band</label>
+                  <input 
+                    type="text" 
+                    name="artist" 
+                    value={formData.artist} 
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-church-green focus:ring-1 focus:ring-church-green" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-church-navy mb-2">Composer</label>
+                  <input 
+                    type="text" 
+                    name="composer" 
+                    value={formData.composer} 
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-church-green focus:ring-1 focus:ring-church-green" 
+                  />
+                </div>
               </div>
             </div>
 
@@ -216,6 +240,7 @@ export default function SongFormModal({ isOpen, onClose, song, onSaved }) {
                   className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-church-green focus:ring-1 focus:ring-church-green"
                 >
                   <option value="active">Active</option>
+                  <option value="draft">Draft</option>
                   <option value="archived">Archived</option>
                 </select>
               </div>
@@ -271,16 +296,29 @@ export default function SongFormModal({ isOpen, onClose, song, onSaved }) {
               />
             </div>
             
-            <div>
-              <label className="block text-sm font-semibold text-church-navy mb-2">Copyright / License Info</label>
-              <input 
-                type="text" 
-                name="copyrightInfo"
-                placeholder="CCLI #123456"
-                value={formData.copyrightInfo} 
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-church-green focus:ring-1 focus:ring-church-green" 
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-church-navy mb-2">Copyright / License Info</label>
+                <input 
+                  type="text" 
+                  name="copyrightInfo"
+                  placeholder="e.g. Sovereign Grace Worship"
+                  value={formData.copyrightInfo} 
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-church-green focus:ring-1 focus:ring-church-green" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-church-navy mb-2">CCLI Song Number</label>
+                <input 
+                  type="text" 
+                  name="ccliSongNumber"
+                  placeholder="e.g. 7096627"
+                  value={formData.ccliSongNumber} 
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-church-green focus:ring-1 focus:ring-church-green" 
+                />
+              </div>
             </div>
           </form>
         </div>
