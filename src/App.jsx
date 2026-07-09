@@ -27,6 +27,9 @@ import ReportsDashboard from './features/reports/ReportsDashboard';
 import SchedulesDashboard from './features/schedules/SchedulesDashboard';
 import DiscipleshipPlans from './features/discipleship/DiscipleshipPlans';
 import DiscipleshipPlanDetail from './features/discipleship/DiscipleshipPlanDetail';
+import SongsList from './features/worship/SongsList';
+import SetlistsList from './features/worship/SetlistsList';
+import SetlistDetails from './features/worship/SetlistDetails';
 
 function AppRoutes() {
   const { currentUser } = useAuth();
@@ -169,6 +172,33 @@ function AppRoutes() {
             element={
               <RoleGuard allowedRoles={['super_admin', 'church_admin', 'pastor']}>
                 <SermonsList />
+              </RoleGuard>
+            } 
+          />
+          
+          <Route 
+            path="worship/songs" 
+            element={
+              <RoleGuard allowedRoles={['super_admin', 'church_admin', 'pastor', 'ministry_leader', 'viewer']}>
+                <SongsList />
+              </RoleGuard>
+            } 
+          />
+          
+          <Route 
+            path="worship/setlists" 
+            element={
+              <RoleGuard allowedRoles={['super_admin', 'church_admin', 'pastor', 'ministry_leader', 'viewer']}>
+                <SetlistsList />
+              </RoleGuard>
+            } 
+          />
+
+          <Route 
+            path="worship/setlists/:id" 
+            element={
+              <RoleGuard allowedRoles={['super_admin', 'church_admin', 'pastor', 'ministry_leader', 'viewer']}>
+                <SetlistDetails />
               </RoleGuard>
             } 
           />

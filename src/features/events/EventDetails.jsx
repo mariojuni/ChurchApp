@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { Calendar, MapPin, Clock, ArrowLeft, Users, Shield, CheckCircle2 } from 'lucide-react';
+import { Calendar, MapPin, Clock, ArrowLeft, Users, Shield, CheckCircle2, Music } from 'lucide-react';
+import { getSetlistByEvent } from '../worship/worshipService';
 
 export default function EventDetails() {
   const { id } = useParams();
@@ -11,6 +12,7 @@ export default function EventDetails() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [assignments, setAssignments] = useState([]);
+  const [setlist, setSetlist] = useState(null);
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -36,6 +38,18 @@ export default function EventDetails() {
       const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       setAssignments(docs);
     });
+    
+    // Fetch setlist for this event
+    const fetchSetlist = async () => {
+      try {
+        const sl = await getSetlistByEvent(id);
+        setSetlist(sl);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchSetlist();
+    
     return () => unsubscribe();
   }, [id]);
 
@@ -59,12 +73,12 @@ export default function EventDetails() {
       </div>
 
       <div className="bg-white rounded-3xl shadow-church-soft border border-gray-100 overflow-hidden">
-        <div className="flex border-b border-gray-100 px-6 pt-4 space-x-6">
-          {['overview', 'assigned_ministries', 'attendance', 'rsvp'].map(tab => (
+        <div className="flex border-b border-gray-100 px-6 pt-4 space-x-6 overflow-x-auto">
+          {['overview', 'assigned_ministries', 'worship_setlist', 'attendance', 'rsvp'].map(tab => (
             <button 
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`pb-4 text-sm font-bold capitalize transition-colors border-b-2 ${activeTab === tab ? 'border-church-green text-church-green' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+              className={`pb-4 text-sm font-bold capitalize transition-colors border-b-2 whitespace-nowrap ${activeTab === tab ? 'border-church-green text-church-green' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
             >
               {tab.replace('_', ' ')}
             </button>
@@ -127,6 +141,46 @@ export default function EventDetails() {
               <button onClick={() => navigate(`/admin/attendance/${event.id}`)} className="mt-4 px-4 py-2 bg-church-green text-white rounded-full text-sm font-bold">
                 Take Attendance
               </button>
+            </div>
+          )}
+
+          {activeTab === 'worship_setlist' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-church-navy text-lg flex items-center">
+                  <Music size={18} className="mr-2 text-church-green" /> Worship Setlist
+                </h3>
+              </div>
+              
+              {setlist ? (
+                <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 flex items-center justify-between">
+                  <div>
+                    <h4 className="font-bold text-church-navy text-lg">{setlist.title}</h4>
+                    <p className="text-sm text-church-slate mt-1">Status: <span className="font-semibold uppercase text-xs">{setlist.status}</span></p>
+                  </div>
+                  <button 
+                    onClick={() => navigate(`/admin/worship/setlists/${setlist.id}`)}
+                    className="px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-bold text-church-navy hover:bg-gray-50"
+                  >
+                    View Setlist
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-church-slate bg-gray-50 rounded-2xl border border-gray-100 border-dashed">
+                  <div className="flex justify-center mb-3">
+                    <div className="p-3 bg-white rounded-full shadow-sm">
+                      <Music size={24} className="text-gray-400" />
+                    </div>
+                  </div>
+                  <p className="mb-4">No worship setlist linked to this event.</p>
+                  <button 
+                    onClick={() => navigate('/admin/worship/setlists')}
+                    className="px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-bold text-church-navy hover:bg-gray-50"
+                  >
+                    Go to Setlists
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
