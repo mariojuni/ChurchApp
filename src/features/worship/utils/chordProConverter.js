@@ -1,5 +1,5 @@
-export const convertToChordPro = (lines) => {
-  const CHORD_REGEX = /^[A-G][#b]?(?:m|min|maj|dim|aug|sus)?\d?(?:\/[A-G][#b]?)?$/i;
+export const convertToChordPro = (lines, title = '') => {
+  const CHORD_REGEX = /^[A-G][#b]?(?:m|min|maj|dim|aug|sus)?\d?(?:sus)?\d?(?:\/[A-G][#b]?)?$/i;
   const SECTION_HEADERS = ['VERSE', 'CHORUS', 'BRIDGE', 'TAG', 'INTRO', 'OUTRO', 'PRE-CHORUS', 'INTERLUDE', 'TURNAROUND'];
 
   const isChordLine = (line) => {
@@ -7,17 +7,31 @@ export const convertToChordPro = (lines) => {
     if (tokens.length === 0) return false;
     
     let chordCount = 0;
+    let validTokenCount = 0;
+    
     for (const t of tokens) {
-      if (CHORD_REGEX.test(t.replace(/[.,;!?()]/g, '')) || t.toUpperCase() === 'N.C.') {
+      const cleanT = t.replace(/[.,;!?()|:\[\]\u200B-\u200D\uFEFF\u200E\u200F]/g, '');
+      
+      // If the token was purely musical notation (e.g. ||:, |, .), consider it a valid chord item
+      if (cleanT.length === 0) {
+        chordCount++;
+        validTokenCount++;
+        continue;
+      }
+      
+      validTokenCount++;
+      if (CHORD_REGEX.test(cleanT) || cleanT.toUpperCase() === 'NC') {
         chordCount++;
       }
     }
-    return (chordCount / tokens.length) > 0.6;
+    
+    // Lower threshold to 0.5 to allow for parenthetical notes like (To Instr.)
+    return validTokenCount > 0 && (chordCount / validTokenCount) >= 0.5;
   };
 
   const isSectionHeader = (line) => {
-    const text = line.text.toUpperCase().trim();
-    return SECTION_HEADERS.some(header => text.startsWith(header));
+    const text = line.text.replace(/[\u200B-\u200D\uFEFF\u200E\u200F]/g, '').toUpperCase().trim();
+    return SECTION_HEADERS.some(header => text.includes(header) && text.indexOf(header) < 5);
   };
 
   const isFooterLine = (line) => {
@@ -28,7 +42,9 @@ export const convertToChordPro = (lines) => {
            text.includes('SONGSELECT') ||
            text.includes('ALL RIGHTS RESERVED') ||
            text.startsWith('NOTE: REPRODUCTION') ||
-           text.includes('MUSIC REPRODUCTION LICENCE');
+           text.includes('MUSIC REPRODUCTION LICENCE') ||
+           /^\d+$/.test(text.trim()) ||
+           (title && text.includes(title.toUpperCase() + ' - '));
   };
 
   let formattedLines = [];

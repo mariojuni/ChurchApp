@@ -86,7 +86,7 @@ export default function ImportSongPage() {
       const arrayBuffer = await pdfFile.arrayBuffer();
       const parsedData = await parseWorshipPdf(arrayBuffer);
       
-      const chordProData = convertToChordPro(parsedData.lines);
+      const chordProData = convertToChordPro(parsedData.lines, parsedData.metadata?.title);
       
       const meta = parsedData.metadata;
       
