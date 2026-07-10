@@ -1,15 +1,21 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { collection, query, orderBy, onSnapshot, deleteDoc, doc, where } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { collection, query, orderBy, onSnapshot, deleteDoc, doc, where, setDoc, updateDoc, increment } from 'firebase/firestore';
+import { ref, deleteObject } from 'firebase/storage';
+import { db, storage } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
-import { Plus, CreditCard, Edit, Trash2, TrendingUp, Search, Calendar, FileText } from 'lucide-react';
+import { Plus, CreditCard, Edit, Trash2, TrendingUp, Search, Calendar, FileText, CheckCircle, XCircle, FileImage, ExternalLink } from 'lucide-react';
 import GivingFormModal from './GivingFormModal';
 
 export default function GivingRecords() {
-  const { userProfile } = useAuth();
+  const { userProfile, currentUser } = useAuth();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Tabs state
+  const [activeTab, setActiveTab] = useState('ledger');
+  const [pendingRecords, setPendingRecords] = useState([]);
+  const [usersMap, setUsersMap] = useState({});
   
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -19,7 +25,7 @@ export default function GivingRecords() {
     if (!userProfile?.churchId) return;
     // Fetch giving without orderBy to avoid composite index requirements
     const q = query(collection(db, 'giving'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribeLedger = onSnapshot(q, (snapshot) => {
       let docs = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -33,7 +39,49 @@ export default function GivingRecords() {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    // Fetch Pending App Submissions
+    const qPending = query(
+      collection(db, 'givingRecords'),
+      where('churchId', '==', userProfile.churchId),
+      where('status', '==', 'pending')
+    );
+    const unsubscribePending = onSnapshot(qPending, (snapshot) => {
+      let docs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      docs.sort((a, b) => {
+        const timeA = a.submittedAt?.seconds || 0;
+        const timeB = b.submittedAt?.seconds || 0;
+        return timeB - timeA;
+      });
+      setPendingRecords(docs);
+    });
+
+    // Fetch Users to map names
+    const fetchUsers = async () => {
+      try {
+        const qUsers = query(collection(db, 'users'), where('churchId', '==', userProfile.churchId));
+        const unsubscribeUsers = onSnapshot(qUsers, (snap) => {
+          const map = {};
+          snap.forEach(d => {
+            map[d.id] = d.data().name || 'Anonymous';
+          });
+          setUsersMap(map);
+        });
+        return unsubscribeUsers;
+      } catch (err) {
+        console.error("Error fetching users map:", err);
+      }
+    };
+    let unsubscribeUsers;
+    fetchUsers().then(unsub => unsubscribeUsers = unsub);
+
+    return () => {
+      unsubscribeLedger();
+      unsubscribePending();
+      if (unsubscribeUsers) unsubscribeUsers();
+    };
   }, [userProfile?.churchId]);
 
   const handleAddClick = () => {
@@ -54,6 +102,92 @@ export default function GivingRecords() {
         console.error("Error deleting document: ", error);
         alert("Failed to delete record.");
       }
+    }
+  };
+
+  const mapFundIdToName = (fundId) => {
+    if (!fundId) return 'Tithe';
+    const lower = fundId.toLowerCase();
+    if (lower.includes('tithe')) return 'Tithe';
+    if (lower.includes('offering')) return 'Offering';
+    if (lower.includes('building')) return 'Building Fund';
+    if (lower.includes('mission')) return 'Missions';
+    return 'Others';
+  };
+
+  const handleApproveSubmission = async (record) => {
+    if (!window.confirm('Are you sure you want to approve this giving record? This will add it to the ledger.')) return;
+    
+    try {
+      const givingRef = doc(collection(db, 'giving'));
+      const submittedDate = record.submittedAt?.toDate() || new Date();
+      const dateString = submittedDate.toISOString().split('T')[0];
+      
+      const donorName = usersMap[record.userId] || 'Anonymous';
+      
+      // Write to ledger
+      await setDoc(givingRef, {
+        churchId: userProfile.churchId,
+        donorName: donorName,
+        amount: record.amount || 0,
+        date: dateString,
+        fundType: mapFundIdToName(record.fundId),
+        method: record.paymentMethod || 'Cash',
+        notes: record.note || '',
+        proofUrl: record.proofOfPaymentUrl || '',
+        appRecordId: record.id,
+        createdAt: new Date(),
+        createdBy: currentUser.uid
+      });
+      
+      // Update app submission status
+      await updateDoc(doc(db, 'givingRecords', record.id), {
+        status: 'approved',
+        reviewedBy: currentUser.uid,
+        reviewedAt: new Date()
+      });
+      
+      // If linked to a campaign, increment the raised amount
+      if (record.campaignId) {
+        try {
+          const campaignRef = doc(db, 'givingCampaigns', record.campaignId);
+          await updateDoc(campaignRef, {
+            raisedAmount: increment(record.amount || 0)
+          });
+        } catch (campaignErr) {
+          console.error("Error updating campaign raised amount:", campaignErr);
+        }
+      }
+      
+    } catch (err) {
+      console.error("Error approving giving record:", err);
+      alert("Failed to approve record.");
+    }
+  };
+
+  const handleRejectSubmission = async (record) => {
+    const reason = window.prompt("Please enter a reason for rejecting this giving submission:");
+    if (reason === null) return; // User cancelled
+    
+    try {
+      await updateDoc(doc(db, 'givingRecords', record.id), {
+        status: 'rejected',
+        rejectionReason: reason || 'Declined by admin',
+        reviewedBy: currentUser.uid,
+        reviewedAt: new Date()
+      });
+
+      if (record.proofOfPaymentUrl) {
+        try {
+          const imageRef = ref(storage, record.proofOfPaymentUrl);
+          await deleteObject(imageRef);
+        } catch (storageErr) {
+          console.error("Error deleting image from storage:", storageErr);
+        }
+      }
+    } catch (err) {
+      console.error("Error rejecting giving record:", err);
+      alert("Failed to reject record.");
     }
   };
 
@@ -141,10 +275,33 @@ export default function GivingRecords() {
         </div>
       </div>
       
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200">
+        <button
+          onClick={() => setActiveTab('ledger')}
+          className={`py-3 px-6 text-sm font-medium transition-colors border-b-2 ${activeTab === 'ledger' ? 'border-church-green text-church-green' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          Ledger
+        </button>
+        <button
+          onClick={() => setActiveTab('pending')}
+          className={`py-3 px-6 text-sm font-medium transition-colors border-b-2 flex items-center ${activeTab === 'pending' ? 'border-church-green text-church-green' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          Pending Verifications
+          {pendingRecords.length > 0 && (
+            <span className="ml-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+              {pendingRecords.length}
+            </span>
+          )}
+        </button>
+      </div>
+
       {/* Table Section */}
       <div className="bg-white rounded-3xl shadow-church-soft border border-gray-100 flex-1 flex flex-col overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white">
-          <h2 className="text-lg font-bold text-church-navy">Recent Transactions</h2>
+          <h2 className="text-lg font-bold text-church-navy">
+            {activeTab === 'ledger' ? 'Recent Transactions' : 'Pending App Submissions'}
+          </h2>
           <div className="relative w-64">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search size={16} className="text-gray-400" />
@@ -162,14 +319,25 @@ export default function GivingRecords() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-church-bg/50 text-church-slate text-xs uppercase tracking-wider">
-                <th className="px-6 py-4 font-semibold rounded-tl-3xl">Date</th>
-                <th className="px-6 py-4 font-semibold">Donor Name</th>
-                <th className="px-6 py-4 font-semibold">Fund Type</th>
-                <th className="px-6 py-4 font-semibold">Method</th>
-                <th className="px-6 py-4 font-semibold">Amount</th>
-                <th className="px-6 py-4 font-semibold rounded-tr-3xl text-right">Actions</th>
-              </tr>
+              {activeTab === 'ledger' ? (
+                <tr className="bg-church-bg/50 text-church-slate text-xs uppercase tracking-wider">
+                  <th className="px-6 py-4 font-semibold rounded-tl-3xl">Date</th>
+                  <th className="px-6 py-4 font-semibold">Donor Name</th>
+                  <th className="px-6 py-4 font-semibold">Fund Type</th>
+                  <th className="px-6 py-4 font-semibold">Method</th>
+                  <th className="px-6 py-4 font-semibold">Amount</th>
+                  <th className="px-6 py-4 font-semibold rounded-tr-3xl text-right">Actions</th>
+                </tr>
+              ) : (
+                <tr className="bg-church-bg/50 text-church-slate text-xs uppercase tracking-wider">
+                  <th className="px-6 py-4 font-semibold rounded-tl-3xl">Submitted</th>
+                  <th className="px-6 py-4 font-semibold">Donor Name</th>
+                  <th className="px-6 py-4 font-semibold">Fund Type</th>
+                  <th className="px-6 py-4 font-semibold">Amount</th>
+                  <th className="px-6 py-4 font-semibold">Proof</th>
+                  <th className="px-6 py-4 font-semibold rounded-tr-3xl text-right">Actions</th>
+                </tr>
+              )}
             </thead>
             <tbody className="divide-y divide-gray-100 text-sm">
               {loading ? (
@@ -178,53 +346,127 @@ export default function GivingRecords() {
                     Loading records...
                   </td>
                 </tr>
-              ) : filteredRecords.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-church-slate flex flex-col items-center">
-                    <CreditCard size={32} className="mb-3 text-gray-300" />
-                    <p>No giving records found.</p>
-                  </td>
-                </tr>
-              ) : (
-                filteredRecords.map((record) => (
-                  <tr key={record.id} className="hover:bg-gray-50 transition-colors group">
-                    <td className="px-6 py-4 whitespace-nowrap text-church-slate font-medium">
-                      {formatDate(record.date)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap font-bold text-church-navy">
-                      {record.donorName || 'Anonymous'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700">
-                        {record.fundType}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-church-slate">
-                      {record.method}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap font-bold text-green-600">
-                      {formatCurrency(record.amount)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button 
-                          onClick={() => handleEditClick(record)}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteClick(record.id)}
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
+              ) : activeTab === 'ledger' ? (
+                filteredRecords.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="px-6 py-12 text-center text-church-slate flex flex-col items-center">
+                      <CreditCard size={32} className="mb-3 text-gray-300" />
+                      <p>No giving records found.</p>
                     </td>
                   </tr>
-                ))
+                ) : (
+                  filteredRecords.map((record) => (
+                    <tr key={record.id} className="hover:bg-gray-50 transition-colors group">
+                      <td className="px-6 py-4 whitespace-nowrap text-church-slate font-medium">
+                        {formatDate(record.date)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap font-bold text-church-navy">
+                        {record.donorName || 'Anonymous'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700">
+                          {record.fundType}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-church-slate">
+                        {record.method}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap font-bold text-green-600">
+                        {formatCurrency(record.amount)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {record.proofUrl && (
+                            <a 
+                              href={record.proofUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+                              title="View Proof"
+                            >
+                              <FileImage size={16} />
+                            </a>
+                          )}
+                          <button 
+                            onClick={() => handleEditClick(record)}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Edit"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteClick(record.id)}
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )
+              ) : (
+                pendingRecords.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="px-6 py-12 text-center text-church-slate flex flex-col items-center">
+                      <CheckCircle size={32} className="mb-3 text-gray-300" />
+                      <p>No pending submissions.</p>
+                    </td>
+                  </tr>
+                ) : (
+                  pendingRecords.map((record) => {
+                    const submittedDate = record.submittedAt?.toDate ? record.submittedAt.toDate() : new Date();
+                    return (
+                      <tr key={record.id} className="hover:bg-gray-50 transition-colors group">
+                        <td className="px-6 py-4 whitespace-nowrap text-church-slate font-medium">
+                          {submittedDate.toLocaleDateString()} {submittedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap font-bold text-church-navy">
+                          {usersMap[record.userId] || 'Anonymous'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700">
+                            {mapFundIdToName(record.fundId)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap font-bold text-green-600">
+                          {formatCurrency(record.amount)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {record.proofOfPaymentUrl ? (
+                            <a href={record.proofOfPaymentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center text-blue-600 hover:underline text-sm font-medium">
+                              <ExternalLink size={14} className="mr-1" />
+                              View Receipt
+                            </a>
+                          ) : (
+                            <span className="text-gray-400 text-xs italic">No receipt</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex justify-end space-x-2">
+                            <button 
+                              onClick={() => handleApproveSubmission(record)}
+                              className="px-3 py-1.5 bg-green-100 text-green-700 hover:bg-green-200 rounded-lg transition-colors text-xs font-bold flex items-center"
+                              title="Approve"
+                            >
+                              <CheckCircle size={14} className="mr-1" />
+                              Approve
+                            </button>
+                            <button 
+                              onClick={() => handleRejectSubmission(record)}
+                              className="px-3 py-1.5 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg transition-colors text-xs font-bold flex items-center"
+                              title="Reject"
+                            >
+                              <XCircle size={14} className="mr-1" />
+                              Reject
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )
               )}
             </tbody>
           </table>

@@ -44,6 +44,7 @@ const navItems = [
   { name: 'Announcements', path: '/admin/announcements', icon: Megaphone, roles: ['super_admin', 'church_admin', 'secretary', 'pastor', 'viewer'] },
   { name: 'Prayer Requests', path: '/admin/prayer', icon: HeartHandshake, roles: ['super_admin', 'church_admin', 'pastor', 'viewer'] },
   { name: 'Giving', path: '/admin/giving', icon: CreditCard, roles: ['super_admin', 'church_admin', 'finance_admin', 'viewer'] },
+  { name: 'Giving Campaigns', path: '/admin/giving/campaigns', icon: HeartHandshake, roles: ['super_admin', 'church_admin', 'finance_admin', 'viewer'] },
   { name: 'Expenses', path: '/admin/expenses', icon: CreditCard, roles: ['super_admin', 'church_admin', 'finance_admin', 'viewer'] },
   { name: 'Reports', path: '/admin/reports', icon: Activity, roles: ['super_admin', 'church_admin', 'pastor', 'finance_admin'] },
   { name: 'Churches', path: '/admin/churches', icon: Building, roles: ['super_admin'] },
@@ -111,7 +112,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                 <NavLink
                   key={item.name}
                   to={item.path}
-                  end={item.path === '/admin'}
+                  end={item.path === '/admin' || item.path === '/admin/giving'}
                   onClick={() => setIsOpen(false)}
                   className={({ isActive }) =>
                     `flex items-center px-4 py-3 mb-1 rounded-xl transition-all duration-200 border-l-4 ${

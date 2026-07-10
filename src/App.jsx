@@ -13,6 +13,7 @@ import MinistriesList from './features/ministries/MinistriesList';
 import EventsList from './features/events/EventsList';
 import EventDetails from './features/events/EventDetails';
 import GivingRecords from './features/giving/GivingRecords';
+import GivingCampaigns from './features/giving/GivingCampaigns';
 import SermonsList from './features/sermons/SermonsList';
 import BiblePlans from './features/bible/BiblePlans';
 import PrayerModeration from './features/prayer/PrayerModeration';
@@ -147,6 +148,15 @@ function AppRoutes() {
             element={
               <RoleGuard allowedRoles={['super_admin', 'church_admin', 'finance_admin']}>
                 <GivingRecords />
+              </RoleGuard>
+            } 
+          />
+          
+          <Route 
+            path="giving/campaigns" 
+            element={
+              <RoleGuard allowedRoles={['super_admin', 'church_admin', 'finance_admin']}>
+                <GivingCampaigns />
               </RoleGuard>
             } 
           />
