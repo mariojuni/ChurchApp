@@ -130,6 +130,42 @@ export default function MinistryDetails() {
     }
   };
 
+  const handleToggleLeader = async (memberId, makeLeader) => {
+    try {
+      let currentLeaders = ministry.leaderIds || [];
+      if (makeLeader) {
+        if (!currentLeaders.includes(memberId)) currentLeaders = [...currentLeaders, memberId];
+      } else {
+        currentLeaders = currentLeaders.filter(id => id !== memberId);
+      }
+      await updateDoc(doc(db, 'ministries', ministry.id), {
+        leaderIds: currentLeaders,
+        updatedAt: new Date()
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update leader status");
+    }
+  };
+
+  const handleSetServingRole = async (member) => {
+    const newRole = window.prompt("Enter serving role (e.g. Drummer, Vocalist):", member.servingRole || '');
+    if (newRole !== null) {
+      try {
+        const updatedMembers = members.map(m => 
+          m.memberId === member.memberId ? { ...m, servingRole: newRole.trim() } : m
+        );
+        await updateDoc(doc(db, 'ministries', ministry.id), {
+          members: updatedMembers,
+          updatedAt: new Date()
+        });
+      } catch (err) {
+        console.error(err);
+        alert("Failed to update serving role");
+      }
+    }
+  };
+
   const toggleMenu = (memberId) => {
     setActiveMenuId(activeMenuId === memberId ? null : memberId);
   };
@@ -223,7 +259,15 @@ export default function MinistryDetails() {
                             <div className="w-8 h-8 rounded-full bg-church-green/10 flex items-center justify-center text-church-green font-bold text-sm uppercase shrink-0">
                               {member.memberName?.charAt(0) || 'U'}
                             </div>
-                            <span className="ml-3 font-bold text-church-navy">{member.memberName}</span>
+                            <div className="ml-3">
+                              <span className="font-bold text-church-navy">{member.memberName}</span>
+                              {(ministry.leaderIds || []).includes(member.memberId) && (
+                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800">
+                                  Leader
+                               </span>
+                              )}
+                              <div className="text-xs text-gray-500 mt-0.5">{member.servingRole || 'Volunteer'}</div>
+                            </div>
                           </div>
                         </td>
                         <td className="p-4 text-right pr-6 relative">
@@ -237,7 +281,26 @@ export default function MinistryDetails() {
                           {activeMenuId === member.memberId && (
                             <>
                               <div className="fixed inset-0 z-10" onClick={() => setActiveMenuId(null)} />
-                              <div className="absolute right-8 top-10 mt-1 w-40 bg-white rounded-xl shadow-lg border border-gray-100 z-20 py-1 text-left">
+                              <div className="absolute right-8 top-10 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 z-20 py-1 text-left">
+                                <button 
+                                  onClick={() => {
+                                    setActiveMenuId(null);
+                                    handleToggleLeader(member.memberId, !(ministry.leaderIds || []).includes(member.memberId));
+                                  }}
+                                  className="w-full flex items-center px-4 py-2 text-sm font-medium text-church-navy hover:bg-gray-50"
+                                >
+                                  <Shield size={16} className="mr-2" /> {(ministry.leaderIds || []).includes(member.memberId) ? 'Remove Leader' : 'Make Leader'}
+                                </button>
+                                <button 
+                                  onClick={() => {
+                                    setActiveMenuId(null);
+                                    handleSetServingRole(member);
+                                  }}
+                                  className="w-full flex items-center px-4 py-2 text-sm font-medium text-church-navy hover:bg-gray-50"
+                                >
+                                  <Edit size={16} className="mr-2" /> Set Serving Role
+                                </button>
+                                <div className="border-t border-gray-100 my-1"></div>
                                 <button 
                                   onClick={() => {
                                     setActiveMenuId(null);

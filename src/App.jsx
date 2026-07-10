@@ -18,7 +18,9 @@ import SermonsList from './features/sermons/SermonsList';
 import BiblePlans from './features/bible/BiblePlans';
 import PrayerModeration from './features/prayer/PrayerModeration';
 import ExpensesList from './features/expenses/ExpensesList';
+import SettingsLayout from './features/settings/SettingsLayout';
 import SettingsProfile from './features/settings/SettingsProfile';
+import SettingsUsersAndRoles from './features/settings/SettingsUsersAndRoles';
 import MinistryDetails from './features/ministries/MinistryDetails';
 import AttendanceDashboard from './features/attendance/AttendanceDashboard';
 import TakeAttendance from './features/attendance/TakeAttendance';
@@ -264,10 +266,20 @@ function AppRoutes() {
             path="settings" 
             element={
               <RoleGuard allowedRoles={['super_admin', 'church_admin']}>
-                <SettingsProfile />
+                <SettingsLayout />
               </RoleGuard>
             } 
-          />
+          >
+            <Route index element={<SettingsProfile />} />
+            <Route 
+              path="roles" 
+              element={
+                <RoleGuard allowedRoles={['super_admin', 'church_admin']}>
+                  <SettingsUsersAndRoles />
+                </RoleGuard>
+              } 
+            />
+          </Route>
         </Route>
 
         <Route path="/" element={<Navigate to="/admin" replace />} />

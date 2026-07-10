@@ -3,6 +3,18 @@ import { X, User, Phone, Mail, MapPin, Calendar, HeartHandshake, CreditCard, Clo
 import { collection, collectionGroup, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
+import { logRoleChange } from '../../utils/roleAudit';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+
+const SYSTEM_ROLES = [
+  'super_admin',
+  'church_admin',
+  'pastor',
+  'ministry_leader',
+  'finance_admin',
+  'secretary',
+  'viewer'
+];
 
 export default function MemberProfileModal({ isOpen, onClose, member = null }) {
   const { userProfile } = useAuth();
@@ -13,9 +25,15 @@ export default function MemberProfileModal({ isOpen, onClose, member = null }) {
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [loadingAttendance, setLoadingAttendance] = useState(false);
 
+  const [newRole, setNewRole] = useState('');
+  const [reason, setReason] = useState('');
+  const [savingRole, setSavingRole] = useState(false);
+
   useEffect(() => {
     if (isOpen && member) {
       setActiveTab('profile');
+      setNewRole(member.role || 'viewer');
+      setReason('');
       
       const canSeeGiving = ['super_admin', 'church_admin', 'finance_admin'].includes(userProfile?.role?.toLowerCase());
       if (canSeeGiving && member.name) {
@@ -68,6 +86,53 @@ export default function MemberProfileModal({ isOpen, onClose, member = null }) {
     const ageDifMs = Date.now() - new Date(birthday).getTime();
     const ageDate = new Date(ageDifMs);
     return Math.abs(ageDate.getUTCFullYear() - 1970);
+  };
+
+  const myRole = userProfile?.role?.toLowerCase() || 'viewer';
+  
+  const canAssignRole = (role) => {
+    if (myRole === 'super_admin') return true;
+    if (myRole === 'church_admin') return role !== 'super_admin';
+    return false;
+  };
+
+  const availableRoles = SYSTEM_ROLES.filter(canAssignRole);
+  const canManageRoles = ['super_admin', 'church_admin'].includes(myRole);
+
+  const handleSaveRole = async () => {
+    if (member.id === userProfile?.uid) {
+      alert("You cannot change your own role.");
+      return;
+    }
+    setSavingRole(true);
+    try {
+      const userRef = doc(db, 'users', member.id);
+      await updateDoc(userRef, {
+        role: newRole,
+        roleUpdatedBy: userProfile.uid,
+        roleUpdatedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+
+      await logRoleChange(
+        member.churchId || userProfile.churchId,
+        member.id,
+        member.role,
+        newRole,
+        userProfile.uid,
+        reason
+      );
+
+      // We mutate member object directly for immediate UI update, or let parent handle refresh
+      member.role = newRole;
+      alert("Role updated successfully.");
+      setReason('');
+    } catch (e) {
+      console.error(e);
+      alert("Failed to update role. Please ensure you have permissions.");
+    } finally {
+      setSavingRole(false);
+    }
   };
 
   return (
@@ -124,6 +189,12 @@ export default function MemberProfileModal({ isOpen, onClose, member = null }) {
               Giving History
             </button>
           )}
+          <button 
+            onClick={() => setActiveTab('access')}
+            className={`pb-4 text-sm font-bold transition-colors border-b-2 ${activeTab === 'access' ? 'border-church-green text-church-green' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+          >
+            Access & Role
+          </button>
         </div>
 
         {/* Content Area */}
@@ -193,6 +264,70 @@ export default function MemberProfileModal({ isOpen, onClose, member = null }) {
                   <p className="text-sm text-church-navy whitespace-pre-wrap">{member.notes || 'No notes available.'}</p>
                 </div>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'access' && (
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 max-w-2xl mx-auto space-y-6">
+              <div>
+                <h2 className="text-lg font-bold text-church-navy">System Access</h2>
+                <p className="text-sm text-gray-500">Manage what this user can access in the admin portal.</p>
+              </div>
+
+              {canManageRoles ? (
+                <div className="space-y-6">
+                  <div className="bg-yellow-50 text-yellow-800 p-4 rounded-xl text-sm flex items-start border border-yellow-200">
+                    <p>
+                      You are about to change this user's system role. This may change what they can access in the admin portal.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-church-navy mb-2">System Role</label>
+                    <select
+                      value={newRole}
+                      onChange={(e) => setNewRole(e.target.value)}
+                      disabled={member.id === userProfile?.uid}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green bg-white capitalize disabled:bg-gray-100"
+                    >
+                      {availableRoles.map(role => (
+                        <option key={role} value={role}>{role.replace('_', ' ')}</option>
+                      ))}
+                    </select>
+                    {member.id === userProfile?.uid && (
+                      <p className="text-xs text-red-500 mt-1">You cannot change your own role.</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-church-navy mb-2">Reason for Change (Optional)</label>
+                    <textarea
+                      value={reason}
+                      onChange={(e) => setReason(e.target.value)}
+                      placeholder="Why is this role being changed?"
+                      rows="2"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green resize-none"
+                    />
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-100 flex justify-end">
+                    <button
+                      onClick={handleSaveRole}
+                      disabled={savingRole || newRole === member.role || member.id === userProfile?.uid}
+                      className="px-6 py-2 bg-church-navy text-white rounded-full font-bold text-sm hover:bg-church-navy/90 transition-colors disabled:opacity-50"
+                    >
+                      {savingRole ? 'Saving...' : 'Update Role'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="inline-flex items-center px-4 py-2 rounded-full bg-blue-50 text-blue-700 capitalize font-bold text-lg mb-4 border border-blue-100">
+                    {member.role?.replace('_', ' ') || 'Viewer'}
+                  </div>
+                  <p className="text-gray-500">You do not have permission to change system roles.</p>
+                </div>
+              )}
             </div>
           )}
 
