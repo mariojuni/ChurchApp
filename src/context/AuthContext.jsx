@@ -58,7 +58,7 @@ export function AuthProvider({ children }) {
           
           if (docSnap.exists()) {
             const data = docSnap.data();
-            setUserProfile(data);
+            setUserProfile({ uid: user.uid, id: user.uid, ...data });
             
             // If they don't have a saved workspace, use their primary church
             if (!localStorage.getItem('activeChurchId')) {
