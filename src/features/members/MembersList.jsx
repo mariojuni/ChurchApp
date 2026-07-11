@@ -309,7 +309,7 @@ export default function MembersList() {
   };
 
   return (
-    <div className="space-y-6 flex flex-col h-full">
+    <div className="space-y-6 flex flex-col h-[calc(100vh-140px)]">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-church-navy">Members Directory</h1>

@@ -9,7 +9,7 @@ export default function AdminLayout() {
   const { logout } = useAuth();
 
   return (
-    <div className="min-h-screen flex text-church-navy font-sans bg-church-bg p-2 lg:p-4 gap-4">
+    <div className="h-screen overflow-hidden flex text-church-navy font-sans bg-church-bg p-2 lg:p-4 gap-4">
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
       
       <div className="flex-1 flex flex-col min-w-0">
