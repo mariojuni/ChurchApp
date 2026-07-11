@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Search, CheckCircle2, X, Users, ShieldAlert, CalendarDays, ChevronRight, UserPlus, Trash2, Clock } from 'lucide-react';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { useAuth } from '../context/AuthContext';
 
 const getTodayStr = () => {
   const d = new Date();
@@ -10,6 +11,9 @@ const getTodayStr = () => {
 };
 
 const AttendanceTab = ({ members, todayCheckins, showStaffFeatures, setDemoStaffMode }) => {
+  const { userProfile } = useAuth();
+  const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
+
   // Filtered checkins state for history list
   const [filterDate, setFilterDate] = useState(getTodayStr());
   const [filteredScannerCheckins, setFilteredScannerCheckins] = useState([]);
@@ -58,6 +62,7 @@ const AttendanceTab = ({ members, todayCheckins, showStaffFeatures, setDemoStaff
   useEffect(() => {
     const q = query(
       collection(db, 'attendance'),
+      where('churchId', '==', CHURCH_ID),
       where('date', '==', filterDate),
       where('type', '==', 'member')
     );
@@ -104,7 +109,8 @@ const AttendanceTab = ({ members, todayCheckins, showStaffFeatures, setDemoStaff
           status: member.status,
           date: getTodayStr(),
           timestamp: serverTimestamp(),
-          type: 'member'
+          type: 'member',
+          churchId: CHURCH_ID
         });
 
         setScanMessage(`🎉 Checked in ${member.name} successfully!`);

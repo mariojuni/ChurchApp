@@ -3,8 +3,7 @@ import { X, Upload } from 'lucide-react';
 import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../firebase';
-
-const CHURCH_ID = 'YmEc6C69Xz4DKRQaQZBV'; 
+import { useAuth } from '../../context/AuthContext';
 
 const CATEGORIES = [
   'Utilities',
@@ -17,6 +16,8 @@ const CATEGORIES = [
 ];
 
 export default function ExpenseFormModal({ isOpen, onClose, expense = null }) {
+  const { userProfile } = useAuth();
+  const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV'; 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     amount: '',
@@ -71,8 +72,8 @@ export default function ExpenseFormModal({ isOpen, onClose, expense = null }) {
     setError('');
 
     try {
-      const expensesColRef = collection(db, 'churches', CHURCH_ID, 'expenses');
-      const docRef = expense ? doc(db, 'churches', CHURCH_ID, 'expenses', expense.id) : doc(expensesColRef);
+      const expensesColRef = collection(db, 'givingExpenses');
+      const docRef = expense ? doc(db, 'givingExpenses', expense.id) : doc(expensesColRef);
 
       let receiptUrl = expense?.receiptUrl || null;
 
@@ -101,6 +102,7 @@ export default function ExpenseFormModal({ isOpen, onClose, expense = null }) {
         amount: parseFloat(formData.amount) || 0,
         receiptUrl,
         updatedAt: serverTimestamp(),
+        churchId: CHURCH_ID
       };
 
       if (!expense) {

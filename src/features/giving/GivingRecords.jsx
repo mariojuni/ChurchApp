@@ -23,16 +23,17 @@ export default function GivingRecords() {
 
   useEffect(() => {
     if (!userProfile?.churchId) return;
-    // Fetch giving without orderBy to avoid composite index requirements
-    const q = query(collection(db, 'giving'));
+    const q = query(
+      collection(db, 'givingRecords'), 
+      where('churchId', '==', userProfile.churchId),
+      where('status', '==', 'completed')
+    );
     const unsubscribeLedger = onSnapshot(q, (snapshot) => {
       let docs = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
       
-      // Support legacy data
-      docs = docs.filter(d => d.churchId === userProfile.churchId || (!d.churchId && userProfile.churchId === 'YmEc6C69Xz4DKRQaQZBV'));
       // Sort in memory (descending by date)
       docs.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
       setRecords(docs);
@@ -97,7 +98,7 @@ export default function GivingRecords() {
   const handleDeleteClick = async (id) => {
     if (window.confirm('Are you sure you want to delete this giving record? This cannot be undone.')) {
       try {
-        await deleteDoc(doc(db, 'giving', id));
+        await deleteDoc(doc(db, 'givingRecords', id));
       } catch (error) {
         console.error("Error deleting document: ", error);
         alert("Failed to delete record.");
@@ -116,35 +117,16 @@ export default function GivingRecords() {
   };
 
   const handleApproveSubmission = async (record) => {
-    if (!window.confirm('Are you sure you want to approve this giving record? This will add it to the ledger.')) return;
+    if (!window.confirm('Are you sure you want to approve this giving record? This will mark it as completed.')) return;
     
     try {
-      const givingRef = doc(collection(db, 'giving'));
-      const submittedDate = record.submittedAt?.toDate() || new Date();
-      const dateString = submittedDate.toISOString().split('T')[0];
+      const recordRef = doc(db, 'givingRecords', record.id);
       
-      const donorName = usersMap[record.userId] || 'Anonymous';
-      
-      // Write to ledger
-      await setDoc(givingRef, {
-        churchId: userProfile.churchId,
-        donorName: donorName,
-        amount: record.amount || 0,
-        date: dateString,
-        fundType: mapFundIdToName(record.fundId),
-        method: record.paymentMethod || 'Cash',
-        notes: record.note || '',
-        proofUrl: record.proofOfPaymentUrl || '',
-        appRecordId: record.id,
-        createdAt: new Date(),
-        createdBy: currentUser.uid
-      });
-      
-      // Update app submission status
-      await updateDoc(doc(db, 'givingRecords', record.id), {
-        status: 'approved',
-        reviewedBy: currentUser.uid,
-        reviewedAt: new Date()
+      // Update existing app submission
+      await updateDoc(recordRef, {
+        status: 'completed',
+        approvedAt: new Date(),
+        approvedBy: currentUser.uid
       });
       
       // If linked to a campaign, increment the raised amount

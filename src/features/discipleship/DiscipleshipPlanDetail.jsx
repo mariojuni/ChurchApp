@@ -15,7 +15,8 @@ import DiscipleshipPlanFormModal from './DiscipleshipPlanFormModal';
 export default function DiscipleshipPlanDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { activeChurchId } = useAuth();
+  const { userProfile } = useAuth();
+  const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
   
   const [plan, setPlan] = useState(null);
   const [weeks, setWeeks] = useState([]);
@@ -26,17 +27,17 @@ export default function DiscipleshipPlanDetail() {
   const [editingWeek, setEditingWeek] = useState(null);
 
   const fetchData = async () => {
-    if (!activeChurchId || !id) return;
+    if (!CHURCH_ID || !id) return;
     setLoading(true);
     try {
-      const planData = await getDiscipleshipPlan(activeChurchId, id);
+      const planData = await getDiscipleshipPlan(CHURCH_ID, id);
       if (!planData) {
         navigate('/admin/discipleship');
         return;
       }
       setPlan(planData);
       
-      const weeksData = await getDiscipleshipWeeks(activeChurchId, id);
+      const weeksData = await getDiscipleshipWeeks(CHURCH_ID, id);
       setWeeks(weeksData);
     } catch (err) {
       console.error(err);
@@ -47,7 +48,7 @@ export default function DiscipleshipPlanDetail() {
 
   useEffect(() => {
     fetchData();
-  }, [activeChurchId, id]);
+  }, [CHURCH_ID, id]);
 
   const handleAddWeekClick = () => {
     setEditingWeek(null);
@@ -62,7 +63,7 @@ export default function DiscipleshipPlanDetail() {
   const handleDeleteWeek = async (weekId) => {
     if (window.confirm('Are you sure you want to delete this week?')) {
       try {
-        await deleteDiscipleshipWeek(activeChurchId, weekId);
+        await deleteDiscipleshipWeek(CHURCH_ID, weekId);
         fetchData();
       } catch (err) {
         alert('Failed to delete week.');
@@ -71,10 +72,10 @@ export default function DiscipleshipPlanDetail() {
   };
 
   const handlePublishAll = async () => {
-    if (window.confirm('Are you sure you want to publish all weeks? They will instantly become visible in the mobile app.')) {
+    if (window.confirm('Publish all draft weeks? This will make them visible to users.')) {
       try {
-        await publishAllWeeks(activeChurchId, id);
-        await fetchData(); // Refresh
+        await publishAllWeeks(CHURCH_ID, id);
+        fetchData();
       } catch (err) {
         console.error("Failed to publish all weeks", err);
         alert("Failed to publish all weeks. See console for details.");

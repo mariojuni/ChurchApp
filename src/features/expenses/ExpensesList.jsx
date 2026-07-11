@@ -1,19 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, deleteDoc, doc, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Plus, Receipt, Edit, Trash2, ArrowUpRight, TrendingDown } from 'lucide-react';
 import ExpenseFormModal from './ExpenseFormModal';
-
-const CHURCH_ID = 'YmEc6C69Xz4DKRQaQZBV';
+import { useAuth } from '../../context/AuthContext';
 
 export default function ExpensesList() {
+  const { userProfile } = useAuth();
+  const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
+  
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
 
   useEffect(() => {
-    const q = query(collection(db, 'churches', CHURCH_ID, 'expenses'), orderBy('date', 'desc'));
+    if (!CHURCH_ID) return;
+    const q = query(
+      collection(db, 'givingExpenses'), 
+      where('churchId', '==', CHURCH_ID),
+      orderBy('date', 'desc')
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -24,7 +31,7 @@ export default function ExpensesList() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [CHURCH_ID]);
 
   const handleAddClick = () => {
     setEditingExpense(null);
@@ -39,7 +46,7 @@ export default function ExpensesList() {
   const handleDeleteClick = async (id, payee) => {
     if (window.confirm(`Are you sure you want to delete the expense for "${payee}"?`)) {
       try {
-        await deleteDoc(doc(db, 'churches', CHURCH_ID, 'expenses', id));
+        await deleteDoc(doc(db, 'givingExpenses', id));
       } catch (error) {
         console.error("Error deleting document: ", error);
         alert("Failed to delete expense.");

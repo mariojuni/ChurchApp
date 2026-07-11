@@ -2,11 +2,12 @@ import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Settings, Users } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { canManageRoles } from '../../utils/permissions';
 
 export default function SettingsLayout() {
   const { userProfile } = useAuth();
   
-  const canManageRoles = ['super_admin', 'church_admin'].includes(userProfile?.role?.toLowerCase());
+  const canManageRolesAccess = canManageRoles(userProfile);
 
   return (
     <div className="flex flex-col md:flex-row h-full max-w-6xl mx-auto space-y-6 md:space-y-0 md:space-x-6 pb-10">
@@ -30,7 +31,7 @@ export default function SettingsLayout() {
               Church Profile
             </NavLink>
             
-            {canManageRoles && (
+            {canManageRolesAccess && (
               <NavLink
                 to="/admin/settings/roles"
                 className={({ isActive }) =>

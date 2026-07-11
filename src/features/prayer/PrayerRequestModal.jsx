@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { collection, doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { useAuth } from '../../context/AuthContext';
 
-const CHURCH_ID = 'YmEc6C69Xz4DKRQaQZBV'; 
-
-export default function PrayerRequestModal({ isOpen, onClose, request = null }) {
+export default function PrayerRequestModal({ isOpen, onClose, request = null, churchId }) {
+  const { currentUser } = useAuth();
   const [formData, setFormData] = useState({
     requesterName: '',
     requestText: '',
     status: 'pending',
-    visibility: 'public' // public, pastors_only
+    visibility: 'public', // public, leaders_only
+    category: 'other'
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -21,14 +22,16 @@ export default function PrayerRequestModal({ isOpen, onClose, request = null }) 
         requesterName: request.requesterName || '',
         requestText: request.requestText || '',
         status: request.status || 'pending',
-        visibility: request.visibility || 'public'
+        visibility: request.visibility || 'public',
+        category: request.category || 'other'
       });
     } else {
       setFormData({
         requesterName: '',
         requestText: '',
         status: 'pending',
-        visibility: 'public'
+        visibility: 'public',
+        category: 'other'
       });
     }
     setError('');
@@ -42,12 +45,17 @@ export default function PrayerRequestModal({ isOpen, onClose, request = null }) 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!churchId) {
+      setError('Church ID is missing. Cannot save.');
+      return;
+    }
+    
     setLoading(true);
     setError('');
 
     try {
-      const prayersColRef = collection(db, 'churches', CHURCH_ID, 'prayer_requests');
-      const docRef = request ? doc(db, 'churches', CHURCH_ID, 'prayer_requests', request.id) : doc(prayersColRef);
+      const prayersColRef = collection(db, 'churches', churchId, 'prayer_requests');
+      const docRef = request ? doc(db, 'churches', churchId, 'prayer_requests', request.id) : doc(prayersColRef);
 
       const prayerDoc = {
         ...formData,
@@ -57,6 +65,7 @@ export default function PrayerRequestModal({ isOpen, onClose, request = null }) 
 
       if (!request) {
         prayerDoc.createdAt = serverTimestamp();
+        prayerDoc.userId = currentUser?.uid; // Required by firestore.rules
       }
 
       await setDoc(docRef, prayerDoc, { merge: true });
@@ -132,9 +141,26 @@ export default function PrayerRequestModal({ isOpen, onClose, request = null }) 
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow bg-white"
                 >
                   <option value="public">Public Wall</option>
-                  <option value="pastors_only">Pastors Only</option>
+                  <option value="leaders_only">Leaders Only</option>
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-church-navy mb-1">Category</label>
+              <select 
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow bg-white"
+              >
+                <option value="healing">Healing</option>
+                <option value="family">Family</option>
+                <option value="spiritual_growth">Spiritual Growth</option>
+                <option value="provision">Provision</option>
+                <option value="thanksgiving">Thanksgiving</option>
+                <option value="other">Other</option>
+              </select>
             </div>
 
             <div className="pt-4 flex justify-end space-x-3">

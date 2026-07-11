@@ -18,15 +18,18 @@ export default function NewPrayerModal({ isOpen, onClose, showToast }) {
     
     const displayName = userProfile?.name || currentUser.displayName || currentUser.email || 'Anonymous';
     
+    const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
     try {
-      await addDoc(collection(db, 'prayers'), {
+      await addDoc(collection(db, 'churches', CHURCH_ID, 'prayer_requests'), {
         name: isAnonymous ? 'Anonymous' : displayName,
         userId: currentUser.uid,
         request: prayerText.trim(),
         createdAt: serverTimestamp(),
         likes: 0,
         likedBy: [],
-        answered: false
+        answered: false,
+        visibility: 'public',
+        status: 'pending' // Added to match admin review workflow if any
       });
       showToast('Prayer request shared!');
       setPrayerText('');

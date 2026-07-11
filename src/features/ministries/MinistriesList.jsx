@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Search, Plus, MoreVertical, Edit, Archive, Users, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -20,18 +20,28 @@ export default function MinistriesList() {
   const { userProfile } = useAuth();
 
   useEffect(() => {
-    if (!userProfile?.churchId) return;
+    if (!userProfile) return;
+    if (!userProfile.churchId) {
+      setLoading(false);
+      return;
+    }
 
-    const q = query(collection(db, 'ministries'), orderBy('name', 'asc'));
+    const q = query(
+      collection(db, 'ministries'), 
+      where('churchId', '==', userProfile.churchId)
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       let docs = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
-      // Filter by the active workspace/church
-      docs = docs.filter(d => d.churchId === userProfile.churchId || (!d.churchId && userProfile.churchId === 'YmEc6C69Xz4DKRQaQZBV'));
+      docs.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
       
       setMinistries(docs);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching ministries:", error);
+      alert(`Error fetching ministries: ${error.message}`);
       setLoading(false);
     });
     return () => unsubscribe();

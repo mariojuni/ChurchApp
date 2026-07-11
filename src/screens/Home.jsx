@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Crown, Users, Calendar, HeartHandshake, HandHeart, Grid, BarChart3, BookOpen, ChevronRight, Quote, Bell } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { hasAnyRole } from '../utils/permissions';
 import { db } from '../firebase';
 import { collection, query, orderBy, limit, onSnapshot, doc, runTransaction } from 'firebase/firestore';
 import { fetchVerseOfTheDay, getUserPreferences, saveUserPreferences } from '../utils/bibleApi';
 
 const Home = ({ toggleTheme, setActiveTab, members }) => {
   const { userProfile, currentUser } = useAuth();
-  const isStaff = userProfile?.role?.toLowerCase() === 'staff';
+  // Staff-level users (secretary or pastor) can tap the hero card to open live attendance
+  const isStaff = hasAnyRole(userProfile, ['super_admin', 'church_admin', 'pastor', 'secretary']);
   const [latestPrayer, setLatestPrayer] = useState(null);
   const [votd, setVotd] = useState(null);
   const [upcomingDuty, setUpcomingDuty] = useState(null);

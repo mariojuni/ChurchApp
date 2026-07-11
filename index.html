@@ -10,6 +10,19 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   </head>
   <body>
+    <div id="error-overlay" style="position:fixed;top:0;left:0;width:100%;z-index:9999;background:red;color:white;padding:20px;display:none;font-family:monospace;white-space:pre-wrap;"></div>
+    <script>
+      window.onerror = function(msg, url, line, col, error) {
+        var el = document.getElementById('error-overlay');
+        el.style.display = 'block';
+        el.innerText += 'Error: ' + msg + '\n' + (error && error.stack ? error.stack : '') + '\n\n';
+      };
+      window.onunhandledrejection = function(event) {
+        var el = document.getElementById('error-overlay');
+        el.style.display = 'block';
+        el.innerText += 'Unhandled Rejection: ' + event.reason + '\n' + (event.reason && event.reason.stack ? event.reason.stack : '') + '\n\n';
+      };
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

@@ -5,16 +5,14 @@ import { db } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
 import { logRoleChange } from '../../utils/roleAudit';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import {
+  canManageGiving,
+  canManageRoles,
+  getSystemRoles,
+  getPrimaryRole,
+  getAssignableRoles,
+} from '../../utils/permissions';
 
-const SYSTEM_ROLES = [
-  'super_admin',
-  'church_admin',
-  'pastor',
-  'ministry_leader',
-  'finance_admin',
-  'secretary',
-  'viewer'
-];
 
 export default function MemberProfileModal({ isOpen, onClose, member = null }) {
   const { userProfile } = useAuth();
@@ -25,19 +23,19 @@ export default function MemberProfileModal({ isOpen, onClose, member = null }) {
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [loadingAttendance, setLoadingAttendance] = useState(false);
 
-  const [newRole, setNewRole] = useState('');
+  const [newRoles, setNewRoles] = useState([]);
   const [reason, setReason] = useState('');
   const [savingRole, setSavingRole] = useState(false);
 
   useEffect(() => {
     if (isOpen && member) {
       setActiveTab('profile');
-      setNewRole(member.role || 'viewer');
+      setNewRoles(getSystemRoles(member));
       setReason('');
       
-      const canSeeGiving = ['super_admin', 'church_admin', 'finance_admin'].includes(userProfile?.role?.toLowerCase());
-      if (canSeeGiving && member.name) {
-        fetchGivingHistory(member.name);
+      const canSeeGiving = canManageGiving(userProfile);
+      if (canSeeGiving && member.id) {
+        fetchGivingHistory(member);
       }
       if (member.id) {
         fetchAttendanceHistory(member.id);
@@ -45,10 +43,15 @@ export default function MemberProfileModal({ isOpen, onClose, member = null }) {
     }
   }, [isOpen, member, userProfile]);
 
-  const fetchGivingHistory = async (name) => {
+  const fetchGivingHistory = async (member) => {
     setLoadingGiving(true);
+    const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
     try {
-      const q = query(collection(db, 'giving'), where('donorName', '==', name));
+      const q = query(
+        collection(db, 'givingRecords'), 
+        where('churchId', '==', CHURCH_ID),
+        where('userId', '==', member.id)
+      );
       const snap = await getDocs(q);
       const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       docs.sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort latest first
@@ -62,9 +65,14 @@ export default function MemberProfileModal({ isOpen, onClose, member = null }) {
 
   const fetchAttendanceHistory = async (memberId) => {
     setLoadingAttendance(true);
+    const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
     try {
-      // Use a collectionGroup query to find records across all sessions
-      const q = query(collectionGroup(db, 'records'), where('memberId', '==', memberId));
+      // Query attendance collection directly
+      const q = query(
+        collection(db, 'attendance'), 
+        where('churchId', '==', CHURCH_ID),
+        where('userId', '==', memberId)
+      );
       const snap = await getDocs(q);
       const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       // Sort by timestamp descending
@@ -79,8 +87,19 @@ export default function MemberProfileModal({ isOpen, onClose, member = null }) {
 
   if (!isOpen || !member) return null;
 
-  const canSeeGiving = ['super_admin', 'church_admin', 'finance_admin'].includes(userProfile?.role?.toLowerCase());
+  const canSeeGiving = canManageGiving(userProfile);
   
+  const myCanManageRoles = canManageRoles(userProfile);
+  const availableRoles = getAssignableRoles(userProfile);
+
+  const toggleRole = (role) => {
+    setNewRoles(prev =>
+      prev.includes(role)
+        ? prev.filter(r => r !== role)
+        : [...prev, role]
+    );
+  };
+
   const calculateAge = (birthday) => {
     if (!birthday) return 'N/A';
     const ageDifMs = Date.now() - new Date(birthday).getTime();
@@ -88,27 +107,26 @@ export default function MemberProfileModal({ isOpen, onClose, member = null }) {
     return Math.abs(ageDate.getUTCFullYear() - 1970);
   };
 
-  const myRole = userProfile?.role?.toLowerCase() || 'viewer';
-  
-  const canAssignRole = (role) => {
-    if (myRole === 'super_admin') return true;
-    if (myRole === 'church_admin') return role !== 'super_admin';
-    return false;
-  };
-
-  const availableRoles = SYSTEM_ROLES.filter(canAssignRole);
-  const canManageRoles = ['super_admin', 'church_admin'].includes(myRole);
 
   const handleSaveRole = async () => {
     if (member.id === userProfile?.uid) {
       alert("You cannot change your own role.");
       return;
     }
+    if (newRoles.length === 0) {
+      alert("A user must have at least one role.");
+      return;
+    }
     setSavingRole(true);
     try {
+      const previousRoles = getSystemRoles(member);
+      const primaryRole = newRoles[0];
+
       const userRef = doc(db, 'users', member.id);
       await updateDoc(userRef, {
-        role: newRole,
+        systemRoles: newRoles,
+        primaryRole,
+        role: primaryRole, // keep legacy field in sync
         roleUpdatedBy: userProfile.uid,
         roleUpdatedAt: serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -117,19 +135,21 @@ export default function MemberProfileModal({ isOpen, onClose, member = null }) {
       await logRoleChange(
         member.churchId || userProfile.churchId,
         member.id,
-        member.role,
-        newRole,
+        previousRoles,
+        newRoles,
         userProfile.uid,
         reason
       );
 
-      // We mutate member object directly for immediate UI update, or let parent handle refresh
-      member.role = newRole;
-      alert("Role updated successfully.");
+      // Sync member object for immediate UI update
+      member.systemRoles = newRoles;
+      member.primaryRole = primaryRole;
+      member.role = primaryRole;
+      alert("Roles updated successfully.");
       setReason('');
     } catch (e) {
       console.error(e);
-      alert("Failed to update role. Please ensure you have permissions.");
+      alert("Failed to update roles. Please ensure you have permissions.");
     } finally {
       setSavingRole(false);
     }
@@ -245,11 +265,15 @@ export default function MemberProfileModal({ isOpen, onClose, member = null }) {
                         </span>
                       </dd>
                     </div>
-                    <div className="grid grid-cols-3"><dt className="text-sm text-gray-500">Role</dt>
+                    <div className="grid grid-cols-3"><dt className="text-sm text-gray-500">Role(s)</dt>
                       <dd className="col-span-2">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 capitalize">
-                          {member.role?.replace('_', ' ') || 'Member'}
-                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {getSystemRoles(member).map(r => (
+                            <span key={r} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 capitalize">
+                              {r.replace(/_/g, ' ')}
+                            </span>
+                          ))}
+                        </div>
                       </dd>
                     </div>
                     <div className="grid grid-cols-3"><dt className="text-sm text-gray-500">Baptism</dt><dd className="col-span-2 text-sm font-medium text-church-navy">{member.baptismStatus || 'Not specified'}</dd></div>
@@ -274,28 +298,59 @@ export default function MemberProfileModal({ isOpen, onClose, member = null }) {
                 <p className="text-sm text-gray-500">Manage what this user can access in the admin portal.</p>
               </div>
 
-              {canManageRoles ? (
+              {myCanManageRoles ? (
                 <div className="space-y-6">
                   <div className="bg-yellow-50 text-yellow-800 p-4 rounded-xl text-sm flex items-start border border-yellow-200">
                     <p>
-                      You are about to change this user's system role. This may change what they can access in the admin portal.
+                      Users can hold multiple roles. The <strong>first selected role</strong> becomes
+                      their primary (display) role.
                     </p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-bold text-church-navy mb-2">System Role</label>
-                    <select
-                      value={newRole}
-                      onChange={(e) => setNewRole(e.target.value)}
-                      disabled={member.id === userProfile?.uid}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green bg-white capitalize disabled:bg-gray-100"
-                    >
-                      {availableRoles.map(role => (
-                        <option key={role} value={role}>{role.replace('_', ' ')}</option>
-                      ))}
-                    </select>
+                    <label className="block text-sm font-bold text-church-navy mb-3">
+                      System Roles
+                      <span className="ml-2 text-xs font-normal text-gray-400">(select one or more)</span>
+                    </label>
+                    <div className="space-y-2">
+                      {availableRoles.map(role => {
+                        const isChecked = newRoles.includes(role);
+                        const isFirst = newRoles[0] === role;
+                        return (
+                          <label
+                            key={role}
+                            className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                              isChecked
+                                ? 'bg-church-green/5 border-church-green/40'
+                                : 'bg-white border-gray-200 hover:border-gray-300'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleRole(role)}
+                              disabled={member.id === userProfile?.uid}
+                              className="w-4 h-4 rounded accent-church-green"
+                            />
+                            <span className="text-sm font-medium text-church-navy capitalize flex-1">
+                              {role.replace(/_/g, ' ')}
+                            </span>
+                            {isFirst && isChecked && (
+                              <span className="text-[10px] font-bold text-church-green bg-church-green/10 px-2 py-0.5 rounded-full">
+                                PRIMARY
+                              </span>
+                            )}
+                          </label>
+                        );
+                      })}
+                    </div>
                     {member.id === userProfile?.uid && (
                       <p className="text-xs text-red-500 mt-1">You cannot change your own role.</p>
+                    )}
+                    {newRoles.length > 0 && (
+                      <p className="text-xs text-gray-400 mt-2">
+                        Primary role: <strong>{newRoles[0].replace(/_/g, ' ')}</strong>
+                      </p>
                     )}
                   </div>
 
@@ -304,7 +359,7 @@ export default function MemberProfileModal({ isOpen, onClose, member = null }) {
                     <textarea
                       value={reason}
                       onChange={(e) => setReason(e.target.value)}
-                      placeholder="Why is this role being changed?"
+                      placeholder="Why are these roles being changed?"
                       rows="2"
                       className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green resize-none"
                     />
@@ -313,17 +368,21 @@ export default function MemberProfileModal({ isOpen, onClose, member = null }) {
                   <div className="pt-4 border-t border-gray-100 flex justify-end">
                     <button
                       onClick={handleSaveRole}
-                      disabled={savingRole || newRole === member.role || member.id === userProfile?.uid}
+                      disabled={savingRole || newRoles.length === 0 || member.id === userProfile?.uid}
                       className="px-6 py-2 bg-church-navy text-white rounded-full font-bold text-sm hover:bg-church-navy/90 transition-colors disabled:opacity-50"
                     >
-                      {savingRole ? 'Saving...' : 'Update Role'}
+                      {savingRole ? 'Saving...' : 'Update Roles'}
                     </button>
                   </div>
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <div className="inline-flex items-center px-4 py-2 rounded-full bg-blue-50 text-blue-700 capitalize font-bold text-lg mb-4 border border-blue-100">
-                    {member.role?.replace('_', ' ') || 'Viewer'}
+                  <div className="flex flex-wrap gap-2 justify-center mb-4">
+                    {getSystemRoles(member).map(r => (
+                      <span key={r} className="inline-flex items-center px-4 py-2 rounded-full bg-blue-50 text-blue-700 capitalize font-bold text-sm border border-blue-100">
+                        {r.replace(/_/g, ' ')}
+                      </span>
+                    ))}
                   </div>
                   <p className="text-gray-500">You do not have permission to change system roles.</p>
                 </div>

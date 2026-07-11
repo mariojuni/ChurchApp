@@ -6,7 +6,9 @@ import DiscipleshipPlanFormModal from './DiscipleshipPlanFormModal';
 import DiscipleshipImportModal from './DiscipleshipImportModal';
 
 export default function DiscipleshipPlans() {
-  const { activeChurchId } = useAuth();
+  const { userProfile } = useAuth();
+  const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
+  
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -16,10 +18,10 @@ export default function DiscipleshipPlans() {
   const [editingPlan, setEditingPlan] = useState(null);
 
   const fetchPlans = async () => {
-    if (!activeChurchId) return;
+    if (!CHURCH_ID) return;
     setLoading(true);
     try {
-      const data = await getDiscipleshipPlans(activeChurchId);
+      const data = await getDiscipleshipPlans(CHURCH_ID);
       setPlans(data);
     } catch (error) {
       console.error("Error fetching discipleship plans:", error);
@@ -30,7 +32,7 @@ export default function DiscipleshipPlans() {
 
   useEffect(() => {
     fetchPlans();
-  }, [activeChurchId]);
+  }, [CHURCH_ID]);
 
   const handleAddClick = () => {
     setEditingPlan(null);
@@ -49,7 +51,7 @@ export default function DiscipleshipPlans() {
   const handleDeleteClick = async (id, title) => {
     if (window.confirm(`Are you sure you want to delete the plan "${title}"? This will also delete all associated weeks.`)) {
       try {
-        await deleteDiscipleshipPlan(activeChurchId, id);
+        await deleteDiscipleshipPlan(CHURCH_ID, id);
         fetchPlans(); // refresh
       } catch (error) {
         console.error("Error deleting plan:", error);

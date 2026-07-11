@@ -28,6 +28,7 @@ import {
   ListMusic
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { hasAnyRole, hasRole, getPrimaryRole } from '../../utils/permissions';
 
 const navItems = [
   { name: 'Dashboard', path: '/admin', icon: LayoutDashboard, roles: ['super_admin', 'church_admin', 'pastor', 'ministry_leader', 'finance_admin', 'secretary', 'viewer'] },
@@ -55,21 +56,23 @@ export default function Sidebar({ isOpen, setIsOpen }) {
   const { activeChurchId, setActiveChurchId, originalUserProfile } = useAuth();
   const [churches, setChurches] = useState([]);
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
-  
-  // Basic fallback role if none is defined
-  const userRole = originalUserProfile?.role?.toLowerCase() || 'viewer';
 
-  const filteredNavItems = navItems.filter(item => item.roles.includes(userRole));
+  const isSuperAdmin = hasRole(originalUserProfile, 'super_admin');
+  const primaryRole = getPrimaryRole(originalUserProfile);
+
+  const filteredNavItems = navItems.filter(item =>
+    hasAnyRole(originalUserProfile, item.roles)
+  );
 
   useEffect(() => {
-    if (userRole === 'super_admin') {
+    if (isSuperAdmin) {
       const fetchChurches = async () => {
         const snap = await getDocs(query(collection(db, 'churches'), orderBy('name', 'asc')));
         setChurches(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       };
       fetchChurches();
     }
-  }, [userRole]);
+  }, [isSuperAdmin]);
 
   return (
     <>
@@ -104,8 +107,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           {/* Navigation */}
           <nav className="flex-1 px-4 py-4 space-y-1">
             <div className="text-xs font-semibold text-gray-400 mb-4 ml-2 tracking-wider">MENU</div>
-            {navItems.map((item) => {
-              if (!item.roles.includes(userRole)) return null;
+            {filteredNavItems.map((item) => {
               const Icon = item.icon;
               
               return (
@@ -131,7 +133,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
           {/* User Profile & Tenant Switcher */}
           <div className="mt-auto p-4 m-4 bg-gray-50 rounded-2xl relative">
-            {userRole === 'super_admin' && (
+            {isSuperAdmin && (
               <div className="mb-4 pb-4 border-b border-gray-200">
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Workspace</p>
                 <div className="relative">
@@ -181,7 +183,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                   {originalUserProfile?.name || 'User'}
                 </p>
                 <p className="text-xs text-church-slate uppercase font-medium">
-                  {userRole.replace('_', ' ')}
+                  {primaryRole.replace(/_/g, ' ')}
                 </p>
               </div>
             </div>

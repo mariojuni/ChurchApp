@@ -175,7 +175,7 @@ function AppRoutes() {
           <Route 
             path="prayer"  
             element={
-              <RoleGuard allowedRoles={['super_admin', 'church_admin', 'pastor']}>
+              <RoleGuard allowedRoles={['super_admin', 'church_admin', 'pastor', 'secretary', 'finance_admin', 'ministry_leader', 'viewer']}>
                 <PrayerModeration />
               </RoleGuard>
             } 

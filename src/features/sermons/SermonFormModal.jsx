@@ -3,11 +3,13 @@ import { X, UploadCloud, Film, Headphones, Image as ImageIcon, FileText, CheckCi
 import { collection, doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../firebase';
+import { useAuth } from '../../context/AuthContext';
 
-const CHURCH_ID = 'YmEc6C69Xz4DKRQaQZBV'; // Hardcoded for this spec
 const TABS = ['Details', 'Media', 'Publishing'];
 
 export default function SermonFormModal({ isOpen, onClose, sermon = null }) {
+  const { userProfile } = useAuth();
+  const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV'; // Fallback
   const [activeTab, setActiveTab] = useState('Details');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -133,8 +135,8 @@ export default function SermonFormModal({ isOpen, onClose, sermon = null }) {
 
     try {
       // 1. Determine Document ID (Create new or use existing)
-      const sermonsColRef = collection(db, 'churches', CHURCH_ID, 'sermons');
-      const docRef = sermon ? doc(db, 'churches', CHURCH_ID, 'sermons', sermon.id) : doc(sermonsColRef);
+      const sermonsColRef = collection(db, 'sermons');
+      const docRef = sermon ? doc(db, 'sermons', sermon.id) : doc(sermonsColRef);
       const sermonId = docRef.id;
 
       // 2. Upload Files if any
@@ -148,6 +150,7 @@ export default function SermonFormModal({ isOpen, onClose, sermon = null }) {
       // 3. Construct Firestore Document
       const sermonDoc = {
         ...formData,
+        churchId: CHURCH_ID, // added for native app rule compliance
         status: statusOverride,
         updatedAt: serverTimestamp(),
       };

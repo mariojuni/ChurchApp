@@ -59,7 +59,11 @@ export default function AssignmentFormModal({ isOpen, onClose, existingAssignmen
         evDocs = evDocs.filter(d => d.churchId === userProfile?.churchId || (!d.churchId && userProfile?.churchId === 'YmEc6C69Xz4DKRQaQZBV'));
         setEvents(evDocs);
         
-        const minSnap = await getDocs(collection(db, 'ministries'));
+        const minQ = query(
+          collection(db, 'ministries'),
+          where('churchId', '==', userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV')
+        );
+        const minSnap = await getDocs(minQ);
         let minDocs = minSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         minDocs = minDocs.filter(d => 
           (d.churchId === userProfile?.churchId || (!d.churchId && userProfile?.churchId === 'YmEc6C69Xz4DKRQaQZBV')) &&

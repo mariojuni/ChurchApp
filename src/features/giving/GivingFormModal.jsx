@@ -88,18 +88,20 @@ export default function GivingFormModal({ isOpen, onClose, record = null }) {
       };
 
       if (record) {
-        const docRef = doc(db, 'giving', record.id);
+        const docRef = doc(db, 'givingRecords', record.id);
         await updateDoc(docRef, {
           ...payload,
           updatedAt: serverTimestamp(),
           updatedBy: currentUser?.uid || null
         });
       } else {
-        await addDoc(collection(db, 'giving'), {
+        await addDoc(collection(db, 'givingRecords'), {
           ...payload,
           createdAt: serverTimestamp(),
           createdBy: currentUser?.uid || null,
-          churchId: userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV' 
+          churchId: userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV',
+          status: 'completed', // Add completed status for manual entries
+          userId: currentUser?.uid // Required by native rules
         });
       }
       onClose();

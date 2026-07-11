@@ -15,6 +15,41 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
+/**
+ * Normalises a raw Firestore user document so it always exposes:
+ *   - systemRoles: SystemRole[]  (multi-role array)
+ *   - primaryRole: SystemRole    (display role)
+ *
+ * Maintains full backward-compat: if the document only has the old `role`
+ * string field, it is transparently promoted to systemRoles without any
+ * Firestore migration needed.
+ */
+function normalizeProfile(uid, data) {
+  if (!data) return null;
+
+  let systemRoles;
+  if (Array.isArray(data.systemRoles) && data.systemRoles.length > 0) {
+    systemRoles = data.systemRoles.map(r => r.toLowerCase());
+  } else if (data.role) {
+    // Legacy: promote single role string to array
+    systemRoles = [data.role.toLowerCase()];
+  } else {
+    systemRoles = ['viewer'];
+  }
+
+  const primaryRole = data.primaryRole
+    ? data.primaryRole.toLowerCase()
+    : systemRoles[0];
+
+  return {
+    uid,
+    id: uid,
+    ...data,
+    systemRoles,
+    primaryRole,
+  };
+}
+
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
@@ -58,7 +93,8 @@ export function AuthProvider({ children }) {
           
           if (docSnap.exists()) {
             const data = docSnap.data();
-            setUserProfile({ uid: user.uid, id: user.uid, ...data });
+            const normalized = normalizeProfile(user.uid, data);
+            setUserProfile(normalized);
             
             // If they don't have a saved workspace, use their primary church
             if (!localStorage.getItem('activeChurchId')) {
@@ -85,7 +121,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const profileWithActiveChurch = userProfile 
-    ? { ...userProfile, churchId: activeChurchId || userProfile.churchId } 
+    ? { ...userProfile, churchId: activeChurchId || userProfile.churchId || 'YmEc6C69Xz4DKRQaQZBV' } 
     : null;
 
   const value = {

@@ -4,6 +4,7 @@ import { collection, query, getDocs, limit, orderBy, onSnapshot, where } from 'f
 import { db } from '../../firebase';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { canManageGiving } from '../../utils/permissions';
 
 export default function DashboardOverview() {
   const { userProfile } = useAuth();
@@ -23,8 +24,12 @@ export default function DashboardOverview() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        if (!userProfile?.churchId) return;
-        
+        if (!userProfile) return;
+        if (!userProfile.churchId) {
+          setLoading(false);
+          return;
+        }
+
         // 1. Fetch Members count
         const membersSnap = await getDocs(collection(db, 'users'));
         const membersCount = membersSnap.docs.filter(d => {
@@ -33,11 +38,9 @@ export default function DashboardOverview() {
         }).length;
 
         // 2. Fetch recent giving for "This Week"
-        const givingSnap = await getDocs(collection(db, 'giving'));
-        const givingDocs = givingSnap.docs.filter(d => {
-          const data = d.data();
-          return data.churchId === CHURCH_ID || (!data.churchId && CHURCH_ID === 'YmEc6C69Xz4DKRQaQZBV');
-        });
+        const givingQ = query(collection(db, 'givingRecords'), where('churchId', '==', CHURCH_ID));
+        const givingSnap = await getDocs(givingQ);
+        const givingDocs = givingSnap.docs;
         
         const now = new Date();
         const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -53,7 +56,8 @@ export default function DashboardOverview() {
         });
 
         // 3. Fetch expenses
-        const expensesSnap = await getDocs(collection(db, 'churches', CHURCH_ID, 'expenses'));
+        const expensesQ = query(collection(db, 'givingExpenses'), where('churchId', '==', CHURCH_ID));
+        const expensesSnap = await getDocs(expensesQ);
         let totalExpenses = 0;
         expensesSnap.forEach(doc => {
           totalExpenses += (doc.data().amount || 0);
@@ -80,15 +84,21 @@ export default function DashboardOverview() {
           .slice(0, 4); // Take top 4
 
         // 6. Fetch recent attendance
-        const attendanceSnap = await getDocs(query(collection(db, 'attendance_sessions'), orderBy('date', 'desc')));
-        const validAttendance = attendanceSnap.docs
-          .map(d => d.data())
-          .filter(d => d.churchId === CHURCH_ID || (!d.churchId && CHURCH_ID === 'YmEc6C69Xz4DKRQaQZBV'));
+        const attendanceQ = query(
+          collection(db, 'attendance'),
+          where('churchId', '==', CHURCH_ID),
+          orderBy('date', 'desc'),
+          limit(100)
+        );
+        const attendanceSnap = await getDocs(attendanceQ);
+        const validAttendance = attendanceSnap.docs.map(d => d.data());
           
+        // Since attendance now stores individual records, we count the number of records
+        // for the most recent date
         let recentAtt = 0;
         if (validAttendance.length > 0) {
-          const m = validAttendance[0].metrics || {};
-          recentAtt = (m.present || 0) + (m.visitors || 0);
+          const mostRecentDate = validAttendance[0].date;
+          recentAtt = validAttendance.filter(d => d.date === mostRecentDate).length;
         }
 
         setStats({
@@ -109,7 +119,7 @@ export default function DashboardOverview() {
     fetchStats();
   }, [userProfile?.churchId]);
 
-  const canSeeGiving = ['super_admin', 'church_admin', 'finance_admin'].includes(userProfile?.role?.toLowerCase());
+  const canSeeGiving = canManageGiving(userProfile);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount || 0);

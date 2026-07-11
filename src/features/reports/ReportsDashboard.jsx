@@ -3,6 +3,7 @@ import { collection, query, getDocs, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
 import { FileText, Download, Calendar, Users, CreditCard, Activity } from 'lucide-react';
+import { canManageGiving } from '../../utils/permissions';
 
 export default function ReportsDashboard() {
   const { userProfile } = useAuth();
@@ -11,7 +12,7 @@ export default function ReportsDashboard() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  const canSeeGiving = ['super_admin', 'church_admin', 'finance_admin'].includes(userProfile?.role?.toLowerCase());
+  const canSeeGiving = canManageGiving(userProfile);
 
   const handleExportCSV = async (reportType) => {
     setLoading(true);

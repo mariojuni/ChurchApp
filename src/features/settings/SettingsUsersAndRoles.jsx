@@ -2,18 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
-import { Shield, AlertCircle, Edit, Search } from 'lucide-react';
+import { Shield, AlertCircle, Edit, Search, X } from 'lucide-react';
 import { logRoleChange } from '../../utils/roleAudit';
-
-const SYSTEM_ROLES = [
-  'super_admin',
-  'church_admin',
-  'pastor',
-  'ministry_leader',
-  'finance_admin',
-  'secretary',
-  'viewer'
-];
+import {
+  SYSTEM_ROLES,
+  getSystemRoles,
+  getPrimaryRole,
+  canManageRoles,
+  getAssignableRoles,
+} from '../../utils/permissions';
 
 export default function SettingsUsersAndRoles() {
   const { userProfile, activeChurchId } = useAuth();
@@ -22,7 +19,8 @@ export default function SettingsUsersAndRoles() {
   const [searchTerm, setSearchTerm] = useState('');
   
   const [editingUser, setEditingUser] = useState(null);
-  const [newRole, setNewRole] = useState('');
+  /** @type {[string[], Function]} selected roles during editing */
+  const [selectedRoles, setSelectedRoles] = useState([]);
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -44,17 +42,8 @@ export default function SettingsUsersAndRoles() {
     }
   };
 
-  const myRole = userProfile?.role?.toLowerCase() || 'viewer';
-  
-  const canAssignRole = (role) => {
-    if (myRole === 'super_admin') return true;
-    if (myRole === 'church_admin') return role !== 'super_admin';
-    return false;
-  };
-
-  const getAvailableRoles = () => {
-    return SYSTEM_ROLES.filter(canAssignRole);
-  };
+  const iCanManageRoles = canManageRoles(userProfile);
+  const availableRoles = getAssignableRoles(userProfile);
 
   const handleEditClick = (user) => {
     if (user.id === userProfile?.uid) {
@@ -62,39 +51,62 @@ export default function SettingsUsersAndRoles() {
       return;
     }
     setEditingUser(user);
-    setNewRole(user.role || 'viewer');
+    // Populate current roles for the user being edited
+    setSelectedRoles(getSystemRoles(user));
     setReason('');
+  };
+
+  const toggleRole = (role) => {
+    setSelectedRoles(prev =>
+      prev.includes(role)
+        ? prev.filter(r => r !== role)
+        : [...prev, role]
+    );
   };
 
   const handleSaveRole = async () => {
     if (!editingUser) return;
+    if (selectedRoles.length === 0) {
+      alert("A user must have at least one role.");
+      return;
+    }
     setSaving(true);
     try {
-      // 1. Update user document
+      const previousRoles = getSystemRoles(editingUser);
+      const primaryRole = selectedRoles[0];
+
+      // 1. Update user document with systemRoles array
       const userRef = doc(db, 'users', editingUser.id);
       await updateDoc(userRef, {
-        role: newRole,
+        systemRoles: selectedRoles,
+        primaryRole,
+        // Keep legacy `role` in sync for backward compat with any other systems
+        role: primaryRole,
         roleUpdatedBy: userProfile.uid,
         roleUpdatedAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
 
-      // 2. Log audit
+      // 2. Log audit (arrays)
       await logRoleChange(
         editingUser.churchId || activeChurchId,
         editingUser.id,
-        editingUser.role,
-        newRole,
+        previousRoles,
+        selectedRoles,
         userProfile.uid,
         reason
       );
 
       // Update local state
-      setUsers(users.map(u => u.id === editingUser.id ? { ...u, role: newRole } : u));
+      setUsers(users.map(u =>
+        u.id === editingUser.id
+          ? { ...u, systemRoles: selectedRoles, primaryRole, role: primaryRole }
+          : u
+      ));
       setEditingUser(null);
     } catch (e) {
       console.error(e);
-      alert("Failed to update role. Please ensure you have permissions.");
+      alert("Failed to update roles. Please ensure you have permissions.");
     } finally {
       setSaving(false);
     }
@@ -137,51 +149,63 @@ export default function SettingsUsersAndRoles() {
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200 text-xs uppercase tracking-wider text-gray-500">
                 <th className="px-6 py-4 font-semibold">User</th>
-                <th className="px-6 py-4 font-semibold">System Role</th>
+                <th className="px-6 py-4 font-semibold">System Roles</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
                 <th className="px-6 py-4 font-semibold">Last Updated</th>
                 <th className="px-6 py-4 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center">
-                      <div className="w-8 h-8 rounded-full bg-church-green text-white flex items-center justify-center font-bold text-sm mr-3">
-                        {user.name?.charAt(0) || 'U'}
+              {filteredUsers.map((user) => {
+                const userRoles = getSystemRoles(user);
+                return (
+                  <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        <div className="w-8 h-8 rounded-full bg-church-green text-white flex items-center justify-center font-bold text-sm mr-3">
+                          {user.name?.charAt(0) || 'U'}
+                        </div>
+                        <div>
+                          <div className="font-bold text-church-navy text-sm">{user.name || 'Unnamed User'}</div>
+                          <div className="text-xs text-gray-500">{user.email}</div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="font-bold text-church-navy text-sm">{user.name || 'Unnamed User'}</div>
-                        <div className="text-xs text-gray-500">{user.email}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap gap-1">
+                        {userRoles.map(r => (
+                          <span
+                            key={r}
+                            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 capitalize border border-blue-100"
+                          >
+                            <Shield size={10} className="mr-1" />
+                            {r.replace(/_/g, ' ')}
+                          </span>
+                        ))}
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 capitalize border border-blue-100">
-                      <Shield size={12} className="mr-1" />
-                      {user.role?.replace('_', ' ') || 'Viewer'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                      Active
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-xs text-gray-500">
-                    {user.roleUpdatedAt?.toDate ? user.roleUpdatedAt.toDate().toLocaleDateString() : 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button 
-                      onClick={() => handleEditClick(user)}
-                      className="text-gray-400 hover:text-church-navy transition-colors"
-                      title="Edit Role"
-                    >
-                      <Edit size={18} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                        Active
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-xs text-gray-500">
+                      {user.roleUpdatedAt?.toDate ? user.roleUpdatedAt.toDate().toLocaleDateString() : 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      {iCanManageRoles && (
+                        <button 
+                          onClick={() => handleEditClick(user)}
+                          className="text-gray-400 hover:text-church-navy transition-colors"
+                          title="Edit Roles"
+                        >
+                          <Edit size={18} />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
               {filteredUsers.length === 0 && (
                 <tr>
                   <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
@@ -194,34 +218,70 @@ export default function SettingsUsersAndRoles() {
         </div>
       </div>
 
-      {/* Edit Role Modal */}
+      {/* Edit Roles Modal */}
       {editingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-3xl w-full max-w-md shadow-church-soft overflow-hidden">
-            <div className="p-6 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-church-navy">Change System Role</h2>
-              <p className="text-sm text-gray-500 mt-1">For {editingUser.name}</p>
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-church-navy">Change System Roles</h2>
+                <p className="text-sm text-gray-500 mt-1">For {editingUser.name}</p>
+              </div>
+              <button onClick={() => setEditingUser(null)} className="p-1.5 text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
             </div>
             
             <div className="p-6 space-y-4 bg-gray-50/50">
               <div className="bg-yellow-50 text-yellow-800 p-4 rounded-xl text-sm flex items-start border border-yellow-200">
                 <AlertCircle size={18} className="mr-2 flex-shrink-0 mt-0.5" />
                 <p>
-                  You are about to change this user's system role. This may change what they can access in the admin portal.
+                  You are changing this user's system roles. Users can hold multiple roles simultaneously.
+                  The <strong>first selected role</strong> becomes the primary (display) role.
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-church-navy mb-2">New System Role</label>
-                <select
-                  value={newRole}
-                  onChange={(e) => setNewRole(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green bg-white capitalize"
-                >
-                  {getAvailableRoles().map(role => (
-                    <option key={role} value={role}>{role.replace('_', ' ')}</option>
-                  ))}
-                </select>
+                <label className="block text-sm font-bold text-church-navy mb-3">
+                  System Roles
+                  <span className="ml-2 text-xs font-normal text-gray-400">(select one or more)</span>
+                </label>
+                <div className="space-y-2">
+                  {availableRoles.map(role => {
+                    const isChecked = selectedRoles.includes(role);
+                    const isFirst = selectedRoles[0] === role;
+                    return (
+                      <label
+                        key={role}
+                        className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                          isChecked
+                            ? 'bg-church-green/5 border-church-green/40'
+                            : 'bg-white border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleRole(role)}
+                          className="w-4 h-4 rounded accent-church-green"
+                        />
+                        <span className="text-sm font-medium text-church-navy capitalize flex-1">
+                          {role.replace(/_/g, ' ')}
+                        </span>
+                        {isFirst && isChecked && (
+                          <span className="text-[10px] font-bold text-church-green bg-church-green/10 px-2 py-0.5 rounded-full">
+                            PRIMARY
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+                {selectedRoles.length > 0 && (
+                  <p className="text-xs text-gray-400 mt-2">
+                    Primary role: <strong>{selectedRoles[0].replace(/_/g, ' ')}</strong>
+                  </p>
+                )}
               </div>
 
               <div>
@@ -229,7 +289,7 @@ export default function SettingsUsersAndRoles() {
                 <textarea
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  placeholder="Why is this role being changed?"
+                  placeholder="Why are these roles being changed?"
                   rows="2"
                   className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green resize-none"
                 />
@@ -246,7 +306,7 @@ export default function SettingsUsersAndRoles() {
               </button>
               <button 
                 onClick={handleSaveRole}
-                disabled={saving}
+                disabled={saving || selectedRoles.length === 0}
                 className="px-6 py-2.5 rounded-full font-bold text-white bg-church-navy hover:bg-church-navy/90 transition-colors disabled:opacity-50"
               >
                 {saving ? 'Saving...' : 'Confirm Change'}

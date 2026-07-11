@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, deleteDoc, doc, where } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { useAuth } from '../../context/AuthContext';
 import { Plus, BookOpen, Edit, Trash2, Calendar, User, Video, Headphones, FileText, MoreVertical, Globe, Lock } from 'lucide-react';
 import SermonFormModal from './SermonFormModal';
 
-const CHURCH_ID = 'YmEc6C69Xz4DKRQaQZBV'; // Hardcoded for this spec
-
 export default function SermonsList() {
+  const { userProfile } = useAuth();
+  const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV'; // Fallback
+  
   const [sermons, setSermons] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -18,14 +20,21 @@ export default function SermonsList() {
   const [activeMenuId, setActiveMenuId] = useState(null);
 
   useEffect(() => {
-    // Advanced query from churches/{CHURCH_ID}/sermons
-    const q = query(collection(db, 'churches', CHURCH_ID, 'sermons'), orderBy('preachedDate', 'desc'));
+    // Query from top-level 'sermons' collection matching firestore.rules
+    const q = query(
+      collection(db, 'sermons'), 
+      where('churchId', '==', CHURCH_ID),
+      orderBy('preachedDate', 'desc')
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
       setSermons(docs);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching sermons:", error);
       setLoading(false);
     });
 
@@ -47,7 +56,7 @@ export default function SermonsList() {
     setActiveMenuId(null);
     if (window.confirm(`Are you sure you want to delete the sermon "${title}"?`)) {
       try {
-        await deleteDoc(doc(db, 'churches', CHURCH_ID, 'sermons', id));
+        await deleteDoc(doc(db, 'sermons', id));
       } catch (error) {
         console.error("Error deleting document: ", error);
         alert("Failed to delete sermon.");
