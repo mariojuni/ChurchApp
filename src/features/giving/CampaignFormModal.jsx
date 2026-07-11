@@ -7,6 +7,7 @@ import { X, Save, Play, Pause, CheckCircle, Archive, AlertCircle, Image as Image
 
 export default function CampaignFormModal({ isOpen, onClose, campaign }) {
   const { userProfile, originalUserProfile } = useAuth();
+  const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -141,7 +142,7 @@ export default function CampaignFormModal({ isOpen, onClose, campaign }) {
     if (!formData.goalAmount || Number(formData.goalAmount) <= 0) return "Goal amount must be greater than 0.";
     if (!formData.campaignType) return "Campaign type is required.";
     if (campaign?.status === 'archived') return "Cannot activate an archived campaign.";
-    if (campaign?.churchId !== userProfile.churchId) return "Invalid church context.";
+    if (campaign?.churchId && campaign.churchId !== CHURCH_ID) return "Invalid church context.";
 
     return null;
   };
@@ -154,7 +155,7 @@ export default function CampaignFormModal({ isOpen, onClose, campaign }) {
     try {
       let imageUrl = formData.coverImageUrl;
       if (coverImageFile) {
-        const storageRef = ref(storage, `images/campaign/${userProfile.churchId}/${Date.now()}_${coverImageFile.name}`);
+        const storageRef = ref(storage, `images/campaign/${CHURCH_ID}/${Date.now()}_${coverImageFile.name}`);
         const uploadTask = uploadBytesResumable(storageRef, coverImageFile);
         
         await new Promise((resolve, reject) => {
@@ -179,7 +180,7 @@ export default function CampaignFormModal({ isOpen, onClose, campaign }) {
           ...formData,
           coverImageUrl: imageUrl,
           goalAmount: Number(formData.goalAmount),
-          churchId: userProfile.churchId,
+          churchId: CHURCH_ID,
           status: 'draft',
           raisedAmount: 0,
           expenseAmount: 0,

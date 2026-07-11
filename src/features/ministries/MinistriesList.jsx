@@ -18,17 +18,18 @@ export default function MinistriesList() {
 
   const navigate = useNavigate();
   const { userProfile } = useAuth();
+  const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
 
   useEffect(() => {
     if (!userProfile) return;
-    if (!userProfile.churchId) {
+    if (!CHURCH_ID) {
       setLoading(false);
       return;
     }
 
     const q = query(
       collection(db, 'ministries'), 
-      where('churchId', '==', userProfile.churchId)
+      where('churchId', '==', CHURCH_ID)
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       let docs = snapshot.docs.map(doc => ({

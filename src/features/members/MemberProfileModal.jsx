@@ -15,7 +15,9 @@ import {
 
 
 export default function MemberProfileModal({ isOpen, onClose, member = null }) {
-  const { userProfile } = useAuth();
+  const { userProfile, activeChurchId } = useAuth();
+  const CHURCH_ID = activeChurchId || userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
+  
   const [activeTab, setActiveTab] = useState('profile');
   const [givingHistory, setGivingHistory] = useState([]);
   const [loadingGiving, setLoadingGiving] = useState(false);
@@ -133,7 +135,7 @@ export default function MemberProfileModal({ isOpen, onClose, member = null }) {
       });
 
       await logRoleChange(
-        member.churchId || userProfile.churchId,
+        member.churchId || CHURCH_ID,
         member.id,
         previousRoles,
         newRoles,

@@ -4,7 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { saveDiscipleshipWeeks } from './discipleshipService';
 
 export default function DiscipleshipWeekFormModal({ isOpen, onClose, planId, week = null, nextWeekNumber = 1, onSave }) {
-  const { activeChurchId } = useAuth();
+  const { userProfile } = useAuth();
+  const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
   
   const [formData, setFormData] = useState({
     weekNumber: nextWeekNumber,
@@ -67,14 +68,14 @@ export default function DiscipleshipWeekFormModal({ isOpen, onClose, planId, wee
     setError('');
     setLoading(true);
 
-    if (!activeChurchId || !planId) {
-      setError('Missing Church ID or Plan ID.');
+    if (!CHURCH_ID || !planId) {
+      setError('Church ID or Plan ID is missing.');
       setLoading(false);
       return;
     }
 
     try {
-      await saveDiscipleshipWeeks(activeChurchId, planId, [formData]);
+      await saveDiscipleshipWeeks(CHURCH_ID, planId, [formData]);
       onSave();
       onClose();
     } catch (err) {

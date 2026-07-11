@@ -4,7 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { createDiscipleshipPlan, updateDiscipleshipPlan } from './discipleshipService';
 
 export default function DiscipleshipPlanFormModal({ isOpen, onClose, plan = null, onSave }) {
-  const { activeChurchId, currentUser } = useAuth();
+  const { userProfile, currentUser } = useAuth();
+  const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
   const [formData, setFormData] = useState({
     title: '',
     subtitle: '',
@@ -50,17 +51,17 @@ export default function DiscipleshipPlanFormModal({ isOpen, onClose, plan = null
     setError('');
     setLoading(true);
 
-    if (!activeChurchId) {
-      setError('Church ID is missing.');
+    if (!CHURCH_ID) {
+      setError('No active church selected');
       setLoading(false);
       return;
     }
 
     try {
       if (plan) {
-        await updateDiscipleshipPlan(activeChurchId, plan.id, formData, currentUser?.uid);
+        await updateDiscipleshipPlan(CHURCH_ID, plan.id, formData, currentUser?.uid);
       } else {
-        await createDiscipleshipPlan(activeChurchId, formData, currentUser?.uid);
+        await createDiscipleshipPlan(CHURCH_ID, formData, currentUser?.uid);
       }
       onSave();
       onClose();

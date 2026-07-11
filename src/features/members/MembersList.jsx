@@ -9,6 +9,7 @@ import * as XLSX from 'xlsx';
 
 export default function MembersList() {
   const { userProfile } = useAuth();
+  const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -28,7 +29,7 @@ export default function MembersList() {
   const [isImporting, setIsImporting] = useState(false);
 
   useEffect(() => {
-    if (!userProfile?.churchId) return;
+    if (!CHURCH_ID) return;
     const q = query(collection(db, 'users'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       let docs = snapshot.docs.map(doc => ({
@@ -37,7 +38,7 @@ export default function MembersList() {
       }));
       
       // Filter in memory to support legacy records that don't have a churchId yet
-      docs = docs.filter(d => d.churchId === userProfile.churchId || (!d.churchId && userProfile.churchId === 'YmEc6C69Xz4DKRQaQZBV'));
+      docs = docs.filter(d => d.churchId === CHURCH_ID || (!d.churchId && CHURCH_ID === 'YmEc6C69Xz4DKRQaQZBV'));
       
       // Format names: First Name Middle Initial Last Name (Title Case)
       docs = docs.map(d => {
@@ -308,7 +309,7 @@ export default function MembersList() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 flex flex-col h-full">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-church-navy">Members Directory</h1>
@@ -341,7 +342,7 @@ export default function MembersList() {
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-church-soft border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-church-soft border border-gray-100 flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Table Toolbar */}
         <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white">
           <div className="flex items-center space-x-4 flex-1">
@@ -378,15 +379,15 @@ export default function MembersList() {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto">
+        <div className="flex-1 overflow-auto">
           <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50/50 border-b border-gray-100 text-xs font-bold text-church-slate uppercase tracking-wider">
-                <th className="p-4 pl-6">Member Details</th>
-                <th className="p-4">Contact</th>
-                <th className="p-4">Status / Role</th>
-                <th className="p-4">Group</th>
-                <th className="p-4 text-right pr-6">Actions</th>
+            <thead className="sticky top-0 bg-gray-50 z-10">
+              <tr className="border-b border-gray-200 text-xs font-bold text-church-slate uppercase tracking-wider">
+                <th className="p-4 pl-6 bg-gray-50">Member Details</th>
+                <th className="p-4 bg-gray-50">Contact</th>
+                <th className="p-4 bg-gray-50">Status / Role</th>
+                <th className="p-4 bg-gray-50">Group</th>
+                <th className="p-4 text-right pr-6 bg-gray-50">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">

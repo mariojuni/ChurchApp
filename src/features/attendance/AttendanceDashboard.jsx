@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { ClipboardCheck, Plus, Calendar, Users, ArrowRight } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 export default function AttendanceDashboard() {
+  const { userProfile } = useAuth();
+  const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
+
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -12,17 +16,25 @@ export default function AttendanceDashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const q = query(collection(db, 'attendance_sessions'), orderBy('date', 'desc'));
+    if (!CHURCH_ID) return;
+    const q = query(
+      collection(db, 'attendance_sessions'),
+      where('churchId', '==', CHURCH_ID)
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({
+      let docs = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
+      docs.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
       setSessions(docs);
+      setLoading(false);
+    }, (err) => {
+      console.error("Attendance fetch error:", err);
       setLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [CHURCH_ID]);
 
   const handleCreateSession = async () => {
     setIsCreating(true);
@@ -42,7 +54,7 @@ export default function AttendanceDashboard() {
             visitors: 0
           },
           createdAt: serverTimestamp(),
-          churchId: 'YmEc6C69Xz4DKRQaQZBV'
+          churchId: CHURCH_ID
         });
         navigate(`/admin/attendance/${newDoc.id}`);
       } catch (err) {

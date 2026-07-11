@@ -60,7 +60,7 @@ export default function DiscipleshipPlans() {
     }
   };
 
-  if (!activeChurchId) {
+  if (!CHURCH_ID) {
     return (
       <div className="flex items-center justify-center h-full">
         <p className="text-gray-500">Please select a church to view discipleship plans.</p>

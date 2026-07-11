@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { collection, query, orderBy, onSnapshot, deleteDoc, doc, where, setDoc, updateDoc, increment } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, deleteDoc, doc, where, setDoc, updateDoc, increment, getDocs } from 'firebase/firestore';
 import { ref, deleteObject } from 'firebase/storage';
 import { db, storage } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
@@ -8,6 +8,7 @@ import GivingFormModal from './GivingFormModal';
 
 export default function GivingRecords() {
   const { userProfile, currentUser } = useAuth();
+  const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -22,11 +23,11 @@ export default function GivingRecords() {
   const [editingRecord, setEditingRecord] = useState(null);
 
   useEffect(() => {
-    if (!userProfile?.churchId) return;
+    if (!CHURCH_ID) return;
     const q = query(
       collection(db, 'givingRecords'), 
-      where('churchId', '==', userProfile.churchId),
-      where('status', '==', 'completed')
+      where('churchId', '==', CHURCH_ID),
+      where('status', 'in', ['completed', 'approved'])
     );
     const unsubscribeLedger = onSnapshot(q, (snapshot) => {
       let docs = snapshot.docs.map(doc => ({
@@ -38,12 +39,15 @@ export default function GivingRecords() {
       docs.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
       setRecords(docs);
       setLoading(false);
+    }, (error) => {
+      console.error("Ledger error:", error);
+      setLoading(false);
     });
 
     // Fetch Pending App Submissions
     const qPending = query(
       collection(db, 'givingRecords'),
-      where('churchId', '==', userProfile.churchId),
+      where('churchId', '==', CHURCH_ID),
       where('status', '==', 'pending')
     );
     const unsubscribePending = onSnapshot(qPending, (snapshot) => {
@@ -57,18 +61,22 @@ export default function GivingRecords() {
         return timeB - timeA;
       });
       setPendingRecords(docs);
+    }, (error) => {
+      console.error("Pending records error:", error);
     });
 
     // Fetch Users to map names
     const fetchUsers = async () => {
       try {
-        const qUsers = query(collection(db, 'users'), where('churchId', '==', userProfile.churchId));
+        const qUsers = query(collection(db, 'users'), where('churchId', '==', CHURCH_ID));
         const unsubscribeUsers = onSnapshot(qUsers, (snap) => {
           const map = {};
           snap.forEach(d => {
             map[d.id] = d.data().name || 'Anonymous';
           });
           setUsersMap(map);
+        }, (error) => {
+          console.error("Users map error:", error);
         });
         return unsubscribeUsers;
       } catch (err) {
@@ -122,11 +130,21 @@ export default function GivingRecords() {
     try {
       const recordRef = doc(db, 'givingRecords', record.id);
       
-      // Update existing app submission
+      const submittedDate = record.submittedAt?.toDate() || new Date();
+      const dateString = submittedDate.toISOString().split('T')[0];
+      const donorName = usersMap[record.userId] || 'Anonymous';
+
+      // Update existing app submission with ledger fields
       await updateDoc(recordRef, {
         status: 'completed',
         approvedAt: new Date(),
-        approvedBy: currentUser.uid
+        approvedBy: currentUser.uid,
+        donorName: donorName,
+        date: dateString,
+        fundType: mapFundIdToName(record.fundId),
+        method: record.paymentMethod || 'Cash',
+        notes: record.note || '',
+        proofUrl: record.proofOfPaymentUrl || ''
       });
       
       // If linked to a campaign, increment the raised amount
@@ -140,11 +158,39 @@ export default function GivingRecords() {
           console.error("Error updating campaign raised amount:", campaignErr);
         }
       }
-      
+      alert('Giving record approved successfully!');
     } catch (err) {
-      console.error("Error approving giving record:", err);
-      alert("Failed to approve record.");
+      console.error("Error approving submission", err);
+      alert("Failed to approve submission.");
     }
+  };
+
+  const handleMigrateData = async () => {
+    if (!window.confirm("Are you sure you want to migrate legacy giving data to givingRecords?")) return;
+    setLoading(true);
+    try {
+      const givingRef = collection(db, 'giving');
+      const snap = await getDocs(query(givingRef, where('churchId', '==', CHURCH_ID)));
+      
+      let migratedCount = 0;
+      for (const docSnap of snap.docs) {
+        const data = docSnap.data();
+        const newRef = doc(collection(db, 'givingRecords'));
+        await setDoc(newRef, {
+          ...data,
+          status: 'completed',
+          migratedAt: new Date()
+        });
+        // Optional: delete from old collection after migrating
+        // await deleteDoc(doc(db, 'giving', docSnap.id));
+        migratedCount++;
+      }
+      alert(`Migrated ${migratedCount} legacy records to givingRecords!`);
+    } catch (err) {
+      console.error("Migration error:", err);
+      alert("Error migrating data.");
+    }
+    setLoading(false);
   };
 
   const handleRejectSubmission = async (record) => {
@@ -194,10 +240,13 @@ export default function GivingRecords() {
   }, [records]);
 
   // Filter records
-  const filteredRecords = records.filter(r => 
-    r.donorName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.fundType?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredRecords = records.filter(r => {
+    const search = searchTerm.toLowerCase();
+    if (!search) return true;
+    const donorMatch = (r.donorName || '').toLowerCase().includes(search);
+    const fundMatch = (r.fundType || '').toLowerCase().includes(search);
+    return donorMatch || fundMatch;
+  });
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount || 0);
@@ -217,13 +266,21 @@ export default function GivingRecords() {
           <h1 className="text-3xl font-bold text-church-navy">Giving Records</h1>
           <p className="text-sm text-church-slate mt-1">Manage tithes, offerings, and donations.</p>
         </div>
-        <button 
-          onClick={handleAddClick}
-          className="flex items-center px-5 py-2.5 bg-church-green text-white rounded-full shadow-md text-sm font-medium hover:bg-church-green/90 transition-opacity"
-        >
-          <Plus size={18} className="mr-2" />
-          Add Record
-        </button>
+        <div className="flex items-center space-x-3">
+          <button 
+            onClick={handleMigrateData}
+            className="flex items-center px-4 py-2.5 bg-yellow-500 text-white rounded-full shadow-md text-sm font-medium hover:bg-yellow-600 transition-opacity"
+          >
+            Migrate Legacy Data
+          </button>
+          <button 
+            onClick={handleAddClick}
+            className="flex items-center px-5 py-2.5 bg-church-green text-white rounded-full shadow-md text-sm font-medium hover:bg-church-green/90 transition-opacity"
+          >
+            <Plus size={18} className="mr-2" />
+            Add Record
+          </button>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -337,56 +394,64 @@ export default function GivingRecords() {
                     </td>
                   </tr>
                 ) : (
-                  filteredRecords.map((record) => (
+                  filteredRecords.map((record) => {
+                    // Fallbacks for records approved during the bug that didn't map ledger fields
+                    const date = record.date || (record.submittedAt ? new Date(record.submittedAt.seconds * 1000).toISOString().split('T')[0] : '');
+                    const donorName = record.donorName || usersMap[record.userId] || 'Anonymous';
+                    const fundType = record.fundType || mapFundIdToName(record.fundId);
+                    const method = record.method || record.paymentMethod || 'Cash';
+                    const proofUrl = record.proofUrl || record.proofOfPaymentUrl || '';
+
+                    return (
                     <tr key={record.id} className="hover:bg-gray-50 transition-colors group">
                       <td className="px-6 py-4 whitespace-nowrap text-church-slate font-medium">
-                        {formatDate(record.date)}
+                        {formatDate(date)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap font-bold text-church-navy">
-                        {record.donorName || 'Anonymous'}
+                        {donorName}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700">
-                          {record.fundType}
+                          {fundType}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-church-slate">
-                        {record.method}
+                        {method}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap font-bold text-green-600">
                         {formatCurrency(record.amount)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {record.proofUrl && (
+                          {proofUrl && (
                             <a 
-                              href={record.proofUrl} 
+                              href={proofUrl} 
                               target="_blank" 
                               rel="noopener noreferrer"
-                              className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+                              className="text-church-blue hover:text-church-blue/80 p-1 rounded-md hover:bg-blue-50 transition-colors"
                               title="View Proof"
                             >
-                              <FileImage size={16} />
+                              <FileImage size={18} />
                             </a>
                           )}
                           <button 
                             onClick={() => handleEditClick(record)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            className="text-church-slate hover:text-church-navy p-1 rounded-md hover:bg-gray-100 transition-colors"
                             title="Edit"
                           >
-                            <Edit size={16} />
+                            <Edit size={18} />
                           </button>
                           <button 
                             onClick={() => handleDeleteClick(record.id)}
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            className="text-red-400 hover:text-red-600 p-1 rounded-md hover:bg-red-50 transition-colors"
                             title="Delete"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={18} />
                           </button>
                         </div>
                       </td>
                     </tr>
-                  ))
+                  )})
                 )
               ) : (
                 pendingRecords.length === 0 ? (

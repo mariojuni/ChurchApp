@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 
 export default function GivingFormModal({ isOpen, onClose, record = null }) {
   const { userProfile, currentUser } = useAuth();
+  const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
   const [formData, setFormData] = useState({
     donorName: '',
     amount: '',
@@ -48,8 +49,8 @@ export default function GivingFormModal({ isOpen, onClose, record = null }) {
     if (isOpen) {
       const fetchMembers = async () => {
         try {
-          if (!userProfile?.churchId) return;
-          const q = query(collection(db, 'users'), where('churchId', '==', userProfile.churchId));
+          if (!CHURCH_ID) return;
+          const q = query(collection(db, 'users'), where('churchId', '==', CHURCH_ID));
           const snap = await getDocs(q);
           const activeMembers = snap.docs
             .map(d => d.data())
@@ -88,15 +89,17 @@ export default function GivingFormModal({ isOpen, onClose, record = null }) {
       };
 
       if (record) {
-        const docRef = doc(db, 'givingRecords', record.id);
-        await updateDoc(docRef, {
+        await updateDoc(doc(db, 'givingRecords', record.id), {
           ...payload,
+          churchId: CHURCH_ID,
           updatedAt: serverTimestamp(),
           updatedBy: currentUser?.uid || null
         });
       } else {
         await addDoc(collection(db, 'givingRecords'), {
           ...payload,
+          churchId: CHURCH_ID,
+          userId: currentUser?.uid,
           createdAt: serverTimestamp(),
           createdBy: currentUser?.uid || null,
           churchId: userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV',

@@ -67,8 +67,12 @@ export default function Sidebar({ isOpen, setIsOpen }) {
   useEffect(() => {
     if (isSuperAdmin) {
       const fetchChurches = async () => {
-        const snap = await getDocs(query(collection(db, 'churches'), orderBy('name', 'asc')));
-        setChurches(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        try {
+          const snap = await getDocs(query(collection(db, 'churches'), orderBy('name', 'asc')));
+          setChurches(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        } catch (error) {
+          console.error("Error fetching churches in Sidebar:", error);
+        }
       };
       fetchChurches();
     }

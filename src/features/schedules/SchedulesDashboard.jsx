@@ -6,7 +6,8 @@ import { Calendar, Users, Shield, Plus, MoreVertical, Edit, Trash2, Copy } from 
 import AssignmentFormModal from './AssignmentFormModal';
 
 export default function SchedulesDashboard() {
-  const { userProfile } = useAuth();
+  const { userProfile, activeChurchId } = useAuth();
+  const CHURCH_ID = activeChurchId || userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -17,13 +18,13 @@ export default function SchedulesDashboard() {
   const [activeMenuId, setActiveMenuId] = useState(null);
 
   useEffect(() => {
-    if (!userProfile?.churchId) return;
+    if (!CHURCH_ID) return;
     
     const q = query(collection(db, 'ministryAssignments'));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       let docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      docs = docs.filter(d => d.churchId === userProfile.churchId || (!d.churchId && userProfile.churchId === 'YmEc6C69Xz4DKRQaQZBV'));
+      docs = docs.filter(d => d.churchId === CHURCH_ID || (!d.churchId && CHURCH_ID === 'YmEc6C69Xz4DKRQaQZBV'));
       docs.sort((a, b) => new Date(a.eventDate || 0) - new Date(b.eventDate || 0));
       
       setAssignments(docs);
@@ -31,7 +32,7 @@ export default function SchedulesDashboard() {
     });
 
     return () => unsubscribe();
-  }, [userProfile?.churchId]);
+  }, [CHURCH_ID]);
 
   const handleDelete = async (id) => {
     setActiveMenuId(null);

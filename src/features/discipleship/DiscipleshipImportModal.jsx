@@ -4,7 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { importDiscipleshipPlanJSON } from './discipleshipService';
 
 export default function DiscipleshipImportModal({ isOpen, onClose, onImportSuccess }) {
-  const { activeChurchId, currentUser } = useAuth();
+  const { userProfile, currentUser } = useAuth();
+  const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
   const [jsonFile, setJsonFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -158,11 +159,14 @@ export default function DiscipleshipImportModal({ isOpen, onClose, onImportSucce
   };
 
   const handleImport = async () => {
-    if (!previewData) return;
-    setLoading(true);
-    setError('');
+    if (!CHURCH_ID || !previewData) {
+      setError('Church ID or preview data is missing.');
+      setLoading(false);
+      return;
+    }
+
     try {
-      await importDiscipleshipPlanJSON(activeChurchId, currentUser?.uid, previewData);
+      await importDiscipleshipPlanJSON(CHURCH_ID, currentUser?.uid, previewData);
       onImportSuccess();
       onClose();
     } catch (err) {

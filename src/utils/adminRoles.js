@@ -23,6 +23,20 @@ export function isAdminRole(role) {
 }
 
 /**
+ * Helper to get normalized roles from a user account for checking admin access
+ */
+function getNormalizedRoles(userAccount) {
+  if (!userAccount) return ['viewer'];
+  if (Array.isArray(userAccount.systemRoles) && userAccount.systemRoles.length > 0) {
+    return userAccount.systemRoles.map(r => r.toLowerCase());
+  }
+  if (userAccount.role) {
+    return [userAccount.role.toLowerCase()];
+  }
+  return ['viewer'];
+}
+
+/**
  * Returns true if the user account is authorized for the admin portal.
  * Rules:
  * - status must be 'active'
@@ -36,7 +50,11 @@ export function isAuthorizedAdminUser(userAccount) {
   // Block explicitly disabled or unlinked accounts; treat missing status as active
   if (userAccount.status === 'disabled') return false;
   if (userAccount.status === 'pendingChurchLink') return false;
-  if (!isAdminRole(userAccount.role)) return false;
-  if (userAccount.role !== 'super_admin' && !userAccount.churchId) return false;
+  
+  const roles = getNormalizedRoles(userAccount);
+  const hasAdminRole = ADMIN_ROLES.some(r => roles.includes(r));
+  if (!hasAdminRole) return false;
+  
+  if (!roles.includes('super_admin') && !userAccount.churchId) return false;
   return true;
 }

@@ -6,7 +6,8 @@ import { FileText, Download, Calendar, Users, CreditCard, Activity } from 'lucid
 import { canManageGiving } from '../../utils/permissions';
 
 export default function ReportsDashboard() {
-  const { userProfile } = useAuth();
+  const { userProfile, activeChurchId } = useAuth();
+  const CHURCH_ID = activeChurchId || userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
   const [loading, setLoading] = useState(false);
   const [dateRange, setDateRange] = useState('This Month');
   const [startDate, setStartDate] = useState('');
@@ -17,12 +18,12 @@ export default function ReportsDashboard() {
   const handleExportCSV = async (reportType) => {
     setLoading(true);
     try {
-      if (!userProfile?.churchId) throw new Error("No church context.");
+      if (!CHURCH_ID) throw new Error("No church context.");
       let csvContent = "";
       
       if (reportType === 'members') {
         const snap = await getDocs(collection(db, 'users'));
-        const data = snap.docs.map(d => d.data()).filter(d => d.churchId === userProfile.churchId || (!d.churchId && userProfile.churchId === 'YmEc6C69Xz4DKRQaQZBV'));
+        const data = snap.docs.map(d => d.data()).filter(d => d.churchId === CHURCH_ID || (!d.churchId && CHURCH_ID === 'YmEc6C69Xz4DKRQaQZBV'));
         
         csvContent = "Name,Email,Phone,Status,Role,Family Group\n";
         data.forEach(m => {
@@ -31,8 +32,8 @@ export default function ReportsDashboard() {
       }
       else if (reportType === 'giving') {
         if (!canSeeGiving) throw new Error("Unauthorized");
-        const snap = await getDocs(collection(db, 'giving'));
-        let data = snap.docs.map(d => d.data()).filter(d => d.churchId === userProfile.churchId || (!d.churchId && userProfile.churchId === 'YmEc6C69Xz4DKRQaQZBV'));
+        const snap = await getDocs(collection(db, 'givingRecords'));
+        let data = snap.docs.map(d => d.data()).filter(d => d.churchId === CHURCH_ID || (!d.churchId && CHURCH_ID === 'YmEc6C69Xz4DKRQaQZBV'));
         
         data.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)); // Descending by date
         
@@ -42,8 +43,8 @@ export default function ReportsDashboard() {
         });
       }
       else if (reportType === 'attendance') {
-        const snap = await getDocs(collection(db, 'attendance_sessions'));
-        let data = snap.docs.map(d => d.data()).filter(d => d.churchId === userProfile.churchId || (!d.churchId && userProfile.churchId === 'YmEc6C69Xz4DKRQaQZBV'));
+        const snap = await getDocs(collection(db, 'attendance'));
+        let data = snap.docs.map(d => d.data()).filter(d => d.churchId === CHURCH_ID || (!d.churchId && CHURCH_ID === 'YmEc6C69Xz4DKRQaQZBV'));
         
         data.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)); // Descending by date
         

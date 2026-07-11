@@ -18,15 +18,18 @@ export default function ExpensesList() {
     if (!CHURCH_ID) return;
     const q = query(
       collection(db, 'givingExpenses'), 
-      where('churchId', '==', CHURCH_ID),
-      orderBy('date', 'desc')
+      where('churchId', '==', CHURCH_ID)
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
+      docs.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
       setExpenses(docs);
+      setLoading(false);
+    }, (err) => {
+      console.error("Expenses fetch error:", err);
       setLoading(false);
     });
 

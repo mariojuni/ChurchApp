@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, deleteDoc, doc, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Megaphone, Plus, MoreVertical, Edit, Trash2, Clock, Calendar, CheckCircle, Smartphone } from 'lucide-react';
 import AnnouncementFormModal from './AnnouncementFormModal';
+import { useAuth } from '../../context/AuthContext';
 
 export default function AnnouncementsList() {
+  const { userProfile } = useAuth();
+  const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
+
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -15,17 +19,25 @@ export default function AnnouncementsList() {
   const [activeMenuId, setActiveMenuId] = useState(null);
 
   useEffect(() => {
-    const q = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
+    if (!CHURCH_ID) return;
+    const q = query(
+      collection(db, 'announcements'),
+      where('churchId', '==', CHURCH_ID)
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({
+      let docs = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
+      docs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       setAnnouncements(docs);
+      setLoading(false);
+    }, (err) => {
+      console.error("Announcements fetch error:", err);
       setLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [CHURCH_ID]);
 
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this announcement?")) {

@@ -25,81 +25,84 @@ export default function DashboardOverview() {
     async function fetchStats() {
       try {
         if (!userProfile) return;
-        if (!userProfile.churchId) {
+        if (!CHURCH_ID) {
           setLoading(false);
           return;
         }
 
-        // 1. Fetch Members count
-        const membersSnap = await getDocs(collection(db, 'users'));
-        const membersCount = membersSnap.docs.filter(d => {
-          const data = d.data();
-          return data.churchId === CHURCH_ID || (!data.churchId && CHURCH_ID === 'YmEc6C69Xz4DKRQaQZBV');
-        }).length;
+        let membersCount = 0;
+        try {
+          const membersQ = query(collection(db, 'users'), where('churchId', '==', CHURCH_ID));
+          const membersSnap = await getDocs(membersQ);
+          membersCount = membersSnap.docs.length;
+        } catch (e) { console.error("Error fetching members:", e); }
 
         // 2. Fetch recent giving for "This Week"
-        const givingQ = query(collection(db, 'givingRecords'), where('churchId', '==', CHURCH_ID));
-        const givingSnap = await getDocs(givingQ);
-        const givingDocs = givingSnap.docs;
-        
-        const now = new Date();
-        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         let totalGivingThisWeek = 0;
-        givingDocs.forEach(doc => {
-          const data = doc.data();
-          if (data.date) {
-            const dateObj = new Date(data.date + 'T00:00:00');
-            if (dateObj >= oneWeekAgo && dateObj <= now) {
-              totalGivingThisWeek += (data.amount || 0);
+        try {
+          const givingQ = query(collection(db, 'givingRecords'), where('churchId', '==', CHURCH_ID));
+          const givingSnap = await getDocs(givingQ);
+          const now = new Date();
+          const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          givingSnap.docs.forEach(doc => {
+            const data = doc.data();
+            if (data.date) {
+              const dateObj = new Date(data.date + 'T00:00:00');
+              if (dateObj >= oneWeekAgo && dateObj <= now) {
+                totalGivingThisWeek += (data.amount || 0);
+              }
             }
-          }
-        });
+          });
+        } catch (e) { console.error("Error fetching giving:", e); }
 
         // 3. Fetch expenses
-        const expensesQ = query(collection(db, 'givingExpenses'), where('churchId', '==', CHURCH_ID));
-        const expensesSnap = await getDocs(expensesQ);
         let totalExpenses = 0;
-        expensesSnap.forEach(doc => {
-          totalExpenses += (doc.data().amount || 0);
-        });
+        try {
+          const expensesQ = query(collection(db, 'givingExpenses'), where('churchId', '==', CHURCH_ID));
+          const expensesSnap = await getDocs(expensesQ);
+          expensesSnap.forEach(doc => {
+            totalExpenses += (doc.data().amount || 0);
+          });
+        } catch (e) { console.error("Error fetching expenses:", e); }
 
         // 4. Fetch pending prayer requests
-        const prayerSnap = await getDocs(collection(db, 'churches', CHURCH_ID, 'prayer_requests'));
         let pendingPrayers = 0;
-        prayerSnap.forEach(doc => {
-          if (doc.data().status === 'pending') {
-            pendingPrayers++;
-          }
-        });
+        try {
+          const prayerSnap = await getDocs(collection(db, 'churches', CHURCH_ID, 'prayer_requests'));
+          prayerSnap.forEach(doc => {
+            if (doc.data().status === 'pending') pendingPrayers++;
+          });
+        } catch (e) { console.error("Error fetching prayers:", e); }
 
         // 5. Fetch upcoming events (next 5)
-        const eventsSnap = await getDocs(collection(db, 'events'));
-        const allEvents = eventsSnap.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .filter(d => d.churchId === CHURCH_ID || (!d.churchId && CHURCH_ID === 'YmEc6C69Xz4DKRQaQZBV'));
-        const upcomingEvents = allEvents
-          .filter(e => e.date) // ensure it has a date
-          .sort((a, b) => new Date(a.date) - new Date(b.date))
-          .filter(e => new Date(e.date + 'T23:59:59') >= new Date()) // only future/today events
-          .slice(0, 4); // Take top 4
+        let upcomingEvents = [];
+        try {
+          const eventsQ = query(collection(db, 'events'), where('churchId', '==', CHURCH_ID));
+          const eventsSnap = await getDocs(eventsQ);
+          const allEvents = eventsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          upcomingEvents = allEvents
+            .filter(e => e.date) // ensure it has a date
+            .sort((a, b) => new Date(a.date) - new Date(b.date))
+            .filter(e => new Date(e.date + 'T23:59:59') >= new Date()) // only future/today events
+            .slice(0, 4); // Take top 4
+        } catch (e) { console.error("Error fetching events:", e); }
 
         // 6. Fetch recent attendance
-        const attendanceQ = query(
-          collection(db, 'attendance'),
-          where('churchId', '==', CHURCH_ID),
-          orderBy('date', 'desc'),
-          limit(100)
-        );
-        const attendanceSnap = await getDocs(attendanceQ);
-        const validAttendance = attendanceSnap.docs.map(d => d.data());
-          
-        // Since attendance now stores individual records, we count the number of records
-        // for the most recent date
         let recentAtt = 0;
-        if (validAttendance.length > 0) {
-          const mostRecentDate = validAttendance[0].date;
-          recentAtt = validAttendance.filter(d => d.date === mostRecentDate).length;
-        }
+        try {
+          const attendanceQ = query(
+            collection(db, 'attendance'),
+            where('churchId', '==', CHURCH_ID),
+            orderBy('date', 'desc'),
+            limit(100)
+          );
+          const attendanceSnap = await getDocs(attendanceQ);
+          const validAttendance = attendanceSnap.docs.map(d => d.data());
+          if (validAttendance.length > 0) {
+            const mostRecentDate = validAttendance[0].date;
+            recentAtt = validAttendance.filter(d => d.date === mostRecentDate).length;
+          }
+        } catch (e) { console.error("Error fetching attendance:", e); }
 
         setStats({
           members: membersCount,

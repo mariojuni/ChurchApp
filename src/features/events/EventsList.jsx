@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 
 export default function EventsList() {
   const { userProfile } = useAuth();
+  const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
   const navigate = useNavigate();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,7 +20,7 @@ export default function EventsList() {
   const [activeMenuId, setActiveMenuId] = useState(null);
 
   useEffect(() => {
-    if (!userProfile?.churchId) return;
+    if (!CHURCH_ID) return;
     const q = query(collection(db, 'events'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       let docs = snapshot.docs.map(doc => ({
@@ -27,7 +28,7 @@ export default function EventsList() {
         ...doc.data()
       }));
       // Legacy support for multi-tenant
-      docs = docs.filter(d => d.churchId === userProfile.churchId || (!d.churchId && userProfile.churchId === 'YmEc6C69Xz4DKRQaQZBV'));
+      docs = docs.filter(d => d.churchId === CHURCH_ID || (!d.churchId && CHURCH_ID === 'YmEc6C69Xz4DKRQaQZBV'));
       // Sort in memory
       docs.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
       setEvents(docs);
@@ -35,7 +36,7 @@ export default function EventsList() {
     });
 
     return () => unsubscribe();
-  }, [userProfile?.churchId]);
+  }, [CHURCH_ID]);
 
   const handleAddClick = () => {
     setEditingEvent(null);

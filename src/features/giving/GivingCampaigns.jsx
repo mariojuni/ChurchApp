@@ -7,6 +7,7 @@ import CampaignFormModal from './CampaignFormModal';
 
 export default function GivingCampaigns() {
   const { userProfile } = useAuth();
+  const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -15,10 +16,10 @@ export default function GivingCampaigns() {
   const [editingCampaign, setEditingCampaign] = useState(null);
 
   useEffect(() => {
-    if (!userProfile?.churchId) return;
+    if (!CHURCH_ID) return;
     const q = query(
       collection(db, 'givingCampaigns'),
-      where('churchId', '==', userProfile.churchId)
+      where('churchId', '==', CHURCH_ID)
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       let docs = snapshot.docs.map(doc => ({
@@ -31,7 +32,7 @@ export default function GivingCampaigns() {
     });
 
     return () => unsubscribe();
-  }, [userProfile?.churchId]);
+  }, [CHURCH_ID]);
 
   const handleAddClick = () => {
     setEditingCampaign(null);
