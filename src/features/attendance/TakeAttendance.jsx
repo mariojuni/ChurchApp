@@ -17,10 +17,18 @@ export default function TakeAttendance() {
   // Local state of attendance marks: { memberId: 'Present' | 'Absent' | 'Late' | 'Excused' }
   const [marks, setMarks] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   
   // Save state
   const [isSaving, setIsSaving] = useState(false);
   const [filterType, setFilterType] = useState('All'); // All, Unmarked, Present, Absent, Late, Excused
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
 
   useEffect(() => {
     // Listen to session doc
@@ -133,7 +141,7 @@ export default function TakeAttendance() {
   };
 
   const filteredMembers = members.filter(m => {
-    const matchesSearch = m.name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (m.name || m.displayName || '').toLowerCase().includes(debouncedSearchTerm.toLowerCase());
     
     const currentMark = marks[m.id];
     let matchesFilter = true;

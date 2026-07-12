@@ -12,6 +12,7 @@ export default function GivingRecords() {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   
   // Tabs state
   const [activeTab, setActiveTab] = useState('ledger');
@@ -20,7 +21,15 @@ export default function GivingRecords() {
   
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [filterFundId, setFilterFundId] = useState('All');
   const [editingRecord, setEditingRecord] = useState(null);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
 
   useEffect(() => {
     if (!CHURCH_ID) return;
@@ -241,7 +250,7 @@ export default function GivingRecords() {
 
   // Filter records
   const filteredRecords = records.filter(r => {
-    const search = searchTerm.toLowerCase();
+    const search = debouncedSearchTerm.toLowerCase();
     if (!search) return true;
     const donorMatch = (r.donorName || '').toLowerCase().includes(search);
     const fundMatch = (r.fundType || '').toLowerCase().includes(search);

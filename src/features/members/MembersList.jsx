@@ -14,6 +14,7 @@ export default function MembersList() {
   const [loading, setLoading] = useState(true);
   
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   
   // Modal states
@@ -27,6 +28,13 @@ export default function MembersList() {
   // File upload ref
   const fileInputRef = useRef(null);
   const [isImporting, setIsImporting] = useState(false);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
 
   useEffect(() => {
     if (!CHURCH_ID) return;
@@ -82,9 +90,9 @@ export default function MembersList() {
   const filteredMembers = members.filter(m => {
     // Search match
     const searchMatch = 
-      m.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      m.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.phone?.includes(searchTerm);
+      (m.name || m.displayName || '').toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
+      m.email?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      m.phone?.includes(debouncedSearchTerm);
       
     // Status match
     const statusMatch = filterStatus === 'All' 

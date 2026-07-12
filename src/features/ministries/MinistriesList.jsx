@@ -10,6 +10,7 @@ export default function MinistriesList() {
   const [ministries, setMinistries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('Active');
   
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -19,6 +20,13 @@ export default function MinistriesList() {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
   const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
 
   useEffect(() => {
     if (!userProfile) return;
@@ -49,7 +57,7 @@ export default function MinistriesList() {
   }, [userProfile?.churchId]);
 
   const filteredMinistries = ministries.filter(m => {
-    const searchMatch = m.name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const searchMatch = m.name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
     const statusMatch = filterStatus === 'All' ? true : m.status === filterStatus;
     return searchMatch && statusMatch;
   });

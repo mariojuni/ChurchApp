@@ -17,8 +17,17 @@ export default function SettingsUsersAndRoles() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   
   const [editingUser, setEditingUser] = useState(null);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
   /** @type {[string[], Function]} selected roles during editing */
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [reason, setReason] = useState('');
@@ -113,8 +122,8 @@ export default function SettingsUsersAndRoles() {
   };
 
   const filteredUsers = users.filter(u => 
-    (u.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (u.email || '').toLowerCase().includes(searchTerm.toLowerCase())
+    (u.name || '').toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
+    (u.email || '').toLowerCase().includes(debouncedSearchTerm.toLowerCase())
   );
 
   if (loading) {
