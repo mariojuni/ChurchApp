@@ -38,8 +38,22 @@ export default function DiscipleshipPlanFormModal({ isOpen, onClose, plan = null
         visibility: plan.visibility || 'church_members_only',
         totalWeeks: plan.totalWeeks || 0
       });
+    } else {
+      setFormData({
+        title: '',
+        subtitle: '',
+        description: '',
+        category: '',
+        language: 'English',
+        coverImageUrl: '',
+        sourceTitle: '',
+        sourceAuthor: '',
+        status: 'draft',
+        visibility: 'church_members_only',
+        totalWeeks: 0
+      });
     }
-  }, [plan]);
+  }, [plan, isOpen]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

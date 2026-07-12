@@ -50,8 +50,27 @@ export default function DiscipleshipWeekFormModal({ isOpen, onClose, planId, wee
         estimatedDurationMinutes: week.estimatedDurationMinutes || 60,
         status: week.status || 'published'
       });
+    } else {
+      setFormData({
+        weekNumber: nextWeekNumber,
+        chapterNumber: '',
+        chapterTitle: '',
+        scriptureReference: '',
+        suggestedFlow: '',
+        storyText: '',
+        retellInstruction: '',
+        retellActivity: '',
+        discussionQuestions: '',
+        keyTruths: '',
+        applicationQuestions: '',
+        additionalStudy: '',
+        memoryVerse: '',
+        sermonLink: '',
+        estimatedDurationMinutes: 60,
+        status: 'draft'
+      });
     }
-  }, [week, nextWeekNumber]);
+  }, [week, nextWeekNumber, isOpen]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
