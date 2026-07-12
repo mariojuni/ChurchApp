@@ -30,14 +30,17 @@ export default function DiscipleshipPlanDetail() {
     if (!CHURCH_ID || !id) return;
     setLoading(true);
     try {
-      const planData = await getDiscipleshipPlan(CHURCH_ID, id);
+      const [planData, weeksData] = await Promise.all([
+        getDiscipleshipPlan(CHURCH_ID, id),
+        getDiscipleshipWeeks(CHURCH_ID, id)
+      ]);
+      
       if (!planData) {
         navigate('/admin/discipleship');
         return;
       }
-      setPlan(planData);
       
-      const weeksData = await getDiscipleshipWeeks(CHURCH_ID, id);
+      setPlan(planData);
       setWeeks(weeksData);
     } catch (err) {
       console.error(err);
