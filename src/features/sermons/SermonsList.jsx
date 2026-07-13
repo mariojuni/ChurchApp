@@ -1,16 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, orderBy, onSnapshot, deleteDoc, doc, where } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { collection, query, onSnapshot, deleteDoc, doc, where } from 'firebase/firestore';
+import { ref as storageRef, deleteObject } from 'firebase/storage';
+import { db, storage } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
+import { canManageSermons } from '../../utils/adminRoles';
 import { Plus, BookOpen, Edit, Trash2, Calendar, User, Video, Headphones, FileText, MoreVertical, Globe, Lock } from 'lucide-react';
 import SermonFormModal from './SermonFormModal';
 
 export default function SermonsList() {
   const { userProfile } = useAuth();
   const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV'; // Fallback
+  const isManager = canManageSermons(userProfile);
   
   const [sermons, setSermons] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState('');
   
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -20,26 +24,35 @@ export default function SermonsList() {
   const [activeMenuId, setActiveMenuId] = useState(null);
 
   useEffect(() => {
-    // Query from top-level 'sermons' collection matching firestore.rules
+    if (!CHURCH_ID) return;
+    setLoading(true);
+    setFetchError('');
+
+    // Simple query by churchId only — avoids composite index requirement.
+    // Sort client-side to keep things index-free.
     const q = query(
       collection(db, 'sermons'), 
-      where('churchId', '==', CHURCH_ID),
-      orderBy('preachedDate', 'desc')
+      where('churchId', '==', CHURCH_ID)
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const docs = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a, b) => {
+          // Sort by sermonDate descending (most recent first)
+          const dateA = a.sermonDate || '';
+          const dateB = b.sermonDate || '';
+          return dateB.localeCompare(dateA);
+        });
       setSermons(docs);
       setLoading(false);
     }, (error) => {
       console.error("Error fetching sermons:", error);
+      setFetchError('Could not load sermons: ' + error.message);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [CHURCH_ID]);
 
   const handleAddClick = () => {
     setEditingSermon(null);
@@ -52,15 +65,27 @@ export default function SermonsList() {
     setActiveMenuId(null);
   };
 
-  const handleDeleteClick = async (id, title) => {
+  const handleDeleteClick = async (sermon) => {
     setActiveMenuId(null);
-    if (window.confirm(`Are you sure you want to delete the sermon "${title}"?`)) {
-      try {
-        await deleteDoc(doc(db, 'sermons', id));
-      } catch (error) {
-        console.error("Error deleting document: ", error);
-        alert("Failed to delete sermon.");
-      }
+    if (!window.confirm(`Are you sure you want to delete "${sermon.title}"? This will permanently delete the media files too.`)) return;
+
+    try {
+      // Delete associated Storage files first
+      const pathsToDelete = [
+        sermon.videoStoragePath,
+        sermon.audioStoragePath,
+        sermon.thumbnailStoragePath,
+      ].filter(Boolean);
+
+      await Promise.allSettled(
+        pathsToDelete.map(path => deleteObject(storageRef(storage, path)))
+      );
+
+      // Delete the Firestore document
+      await deleteDoc(doc(db, 'sermons', sermon.id));
+    } catch (error) {
+      console.error('Error deleting sermon:', error);
+      alert('Failed to delete sermon. Please try again.');
     }
   };
 
@@ -95,16 +120,25 @@ export default function SermonsList() {
           <h1 className="text-3xl font-bold text-church-navy">Sermons</h1>
           <p className="text-sm text-church-slate mt-1">Manage sermon uploads, media files, and publish status.</p>
         </div>
-        <button 
-          onClick={handleAddClick}
-          className="flex items-center px-5 py-2.5 bg-church-green text-white rounded-full shadow-md text-sm font-medium hover:bg-church-green/90 transition-opacity"
-        >
-          <Plus size={18} className="mr-2" />
-          Create Sermon
-        </button>
+        {isManager && (
+          <button 
+            onClick={handleAddClick}
+            className="flex items-center px-5 py-2.5 bg-church-green text-white rounded-full shadow-md text-sm font-medium hover:bg-church-green/90 transition-opacity"
+          >
+            <Plus size={18} className="mr-2" />
+            Create Sermon
+          </button>
+        )}
       </div>
       
-      {loading ? (
+      {fetchError ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center p-8">
+            <p className="text-red-600 font-medium mb-2">⚠️ Could not load sermons</p>
+            <p className="text-sm text-gray-500">{fetchError}</p>
+          </div>
+        </div>
+      ) : loading ? (
         <div className="flex-1 flex items-center justify-center">
           <p className="text-church-slate">Loading sermons...</p>
         </div>
@@ -115,12 +149,14 @@ export default function SermonsList() {
           </div>
           <h3 className="text-xl font-bold text-church-navy mb-2">No sermons yet</h3>
           <p className="text-church-slate text-center max-w-sm mb-6">Build your content library by uploading your first sermon audio or video.</p>
-          <button 
-            onClick={handleAddClick}
-            className="px-6 py-3 bg-white border border-gray-300 text-church-navy rounded-full text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm"
-          >
-            Create Sermon
-          </button>
+          {isManager && (
+            <button 
+              onClick={handleAddClick}
+              className="px-6 py-3 bg-white border border-gray-300 text-church-navy rounded-full text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm"
+            >
+              Create Sermon
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -153,34 +189,36 @@ export default function SermonsList() {
                 </div>
                 
                 {/* Actions Dropdown */}
-                <div className="absolute top-4 right-4 relative">
-                  <button 
-                    onClick={() => toggleMenu(sermon.id)}
-                    className="p-2 text-gray-500 hover:text-church-navy bg-white/80 hover:bg-white rounded-full transition-colors backdrop-blur-sm shadow-sm"
-                  >
-                    <MoreVertical size={18} />
-                  </button>
-                  
-                  {activeMenuId === sermon.id && (
-                    <>
-                      <div className="fixed inset-0 z-10" onClick={() => setActiveMenuId(null)} />
-                      <div className="absolute right-0 top-10 w-36 bg-white rounded-xl shadow-lg border border-gray-100 z-20 py-1">
-                        <button 
-                          onClick={() => handleEditClick(sermon)}
-                          className="w-full flex items-center px-4 py-2 text-sm text-church-navy hover:bg-gray-50"
-                        >
-                          <Edit size={14} className="mr-2" /> Edit Details
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteClick(sermon.id, sermon.title)}
-                          className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                        >
-                          <Trash2 size={14} className="mr-2" /> Delete
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
+                {isManager && (
+                  <div className="absolute top-4 right-4 relative">
+                    <button 
+                      onClick={() => toggleMenu(sermon.id)}
+                      className="p-2 text-gray-500 hover:text-church-navy bg-white/80 hover:bg-white rounded-full transition-colors backdrop-blur-sm shadow-sm"
+                    >
+                      <MoreVertical size={18} />
+                    </button>
+                    
+                    {activeMenuId === sermon.id && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setActiveMenuId(null)} />
+                        <div className="absolute right-0 top-10 w-36 bg-white rounded-xl shadow-lg border border-gray-100 z-20 py-1">
+                          <button 
+                            onClick={() => handleEditClick(sermon)}
+                            className="w-full flex items-center px-4 py-2 text-sm text-church-navy hover:bg-gray-50"
+                          >
+                            <Edit size={14} className="mr-2" /> Edit Details
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteClick(sermon)}
+                            className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 size={14} className="mr-2" /> Delete
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
 
                 {/* Media Icons Over Thumbnail */}
                 <div className="absolute bottom-3 left-4 flex space-x-2">
@@ -195,7 +233,7 @@ export default function SermonsList() {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center text-xs font-semibold text-church-green uppercase tracking-wider">
                     <Calendar size={14} className="mr-1.5" />
-                    {formatDate(sermon.preachedDate)}
+                    {formatDate(sermon.sermonDate)}
                   </div>
                   <div className="text-xs text-church-slate font-medium bg-gray-100 px-2 py-0.5 rounded-full">
                     {sermon.category || 'Sunday Worship'}

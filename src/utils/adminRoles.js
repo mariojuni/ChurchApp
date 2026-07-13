@@ -58,3 +58,46 @@ export function isAuthorizedAdminUser(userAccount) {
   if (!roles.includes('super_admin') && !userAccount.churchId) return false;
   return true;
 }
+
+/**
+ * Returns true if the user account is authorized to manage sermons.
+ * Rules:
+ * - true for super_admin, church_admin, pastor
+ * - true for secretary only if allowed by permissions
+ * - true for ministry_leader only if assigned to sermon/media ministry
+ * - false for finance_admin, viewer, etc.
+ */
+export function canManageSermons(userAccount) {
+  if (!userAccount || userAccount.status === 'disabled') return false;
+  
+  const roles = getNormalizedRoles(userAccount);
+  
+  if (
+    roles.includes('super_admin') || 
+    roles.includes('church_admin') || 
+    roles.includes('pastor')
+  ) {
+    return true;
+  }
+  
+  if (roles.includes('secretary')) {
+    // Secretary needs explicit permission
+    if (userAccount.permissions?.sermons === true || userAccount.canManageSermons === true) {
+      return true;
+    }
+  }
+  
+  if (roles.includes('ministry_leader')) {
+    // Ministry leader needs to be assigned to media/sermon ministry
+    // We check explicit permission or if managedMinistryIds has a media-related ID
+    if (
+      userAccount.permissions?.sermons === true || 
+      userAccount.canManageSermons === true ||
+      (Array.isArray(userAccount.managedMinistryIds) && userAccount.managedMinistryIds.includes('media_ministry_id_placeholder'))
+    ) {
+      return true;
+    }
+  }
+  
+  return false;
+}
