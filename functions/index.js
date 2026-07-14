@@ -12,7 +12,7 @@ admin.initializeApp();
 
 exports.optimizeSermonVideo = functions
   .runWith({
-    memory: "4GB",
+    memory: "8GB",
     timeoutSeconds: 540,
   })
   .storage.bucket("nazarenechurch-9c030.firebasestorage.app")
@@ -66,7 +66,8 @@ exports.optimizeSermonVideo = functions
         .outputOptions([
           "-vf scale=-2:720", // 720p
           "-crf 28", // Good balance between quality and size
-          "-preset fast",
+          "-preset ultrafast", // CRITICAL: Maximum speed to avoid the 9-minute Cloud Function timeout
+          "-threads 2", // Use multiple threads since we upgraded memory to 8GB
         ])
         .on("end", () => {
           console.log("Transcoding finished successfully.");
@@ -108,6 +109,11 @@ exports.optimizeSermonVideo = functions
     });
 
     console.log("Optimization process finished completely!");
+
+    // 6. Delete the raw file to save storage space
+    console.log("Deleting raw file...");
+    await bucket.file(filePath).delete();
+    console.log("Raw file deleted successfully.");
 
   } catch (error) {
     console.error("Optimization process failed:", error);

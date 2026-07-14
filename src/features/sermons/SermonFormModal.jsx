@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, UploadCloud, Film, Headphones, Image as ImageIcon, CheckCircle2, Scissors, Settings, Play } from 'lucide-react';
+import { X, UploadCloud, Film, Headphones, Image as ImageIcon, CheckCircle2, Scissors, Settings, Play, Globe } from 'lucide-react';
 import { collection, doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../firebase';
@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { trimMedia, compressAudio, compressVideo, generateThumbnail } from '../../utils/mediaProcessor';
 
 const STEPS = ['Details', 'Upload', 'Trim', 'Thumbnail', 'Optimize', 'Review'];
-const EDIT_STEPS = ['Details', 'Review'];
+const EDIT_STEPS = ['Details', 'Thumbnail', 'Review'];
 
 export default function SermonFormModal({ isOpen, onClose, sermon = null }) {
   const { userProfile } = useAuth();
@@ -93,9 +93,9 @@ export default function SermonFormModal({ isOpen, onClose, sermon = null }) {
   const resetMediaState = () => {
     setMediaFile(null);
     setMediaPreviewUrl('');
-    setTrimStart(0);
-    setTrimEnd(0);
-    setDuration(0);
+    setTrimStart(sermon?.trimStartSeconds || 0);
+    setTrimEnd(sermon?.trimEndSeconds || 0);
+    setDuration(sermon?.durationSeconds || 0);
     setThumbnailFile(null);
     setThumbnailPreviewUrl('');
     setThumbnailTime(0);
@@ -134,10 +134,11 @@ export default function SermonFormModal({ isOpen, onClose, sermon = null }) {
   };
 
   const handleGenerateThumbnail = async () => {
-    if (!mediaFile || !mediaFile.type.startsWith('video/')) return;
+    const videoSource = mediaFile || (isEditMode ? sermon?.videoUrl : null);
+    if (!videoSource || formData.mediaType !== 'video') return;
     try {
       setLoading(true);
-      const thumbFile = await generateThumbnail(mediaFile, thumbnailTime);
+      const thumbFile = await generateThumbnail(videoSource, thumbnailTime);
       setThumbnailFile(thumbFile);
       setThumbnailPreviewUrl(URL.createObjectURL(thumbFile));
     } catch (err) {
@@ -167,7 +168,7 @@ export default function SermonFormModal({ isOpen, onClose, sermon = null }) {
   const uploadFileToStorage = async (sermonId, file, folder, progressKey) => {
     if (!file) return null;
     // For video media, upload to the raw folder so the Cloud Function can optimize it
-    const actualFolder = (folder === 'media' && formData.mediaType === 'video') ? 'media/raw' : folder;
+    const actualFolder = (folder === 'video' || (folder === 'media' && formData.mediaType === 'video')) ? 'media/raw' : folder;
     const storagePath = `churches/${CHURCH_ID}/sermons/${sermonId}/${actualFolder}/${file.name}`;
     const storageRef = ref(storage, storagePath);
     const uploadTask = uploadBytesResumable(storageRef, file);
@@ -492,7 +493,7 @@ export default function SermonFormModal({ isOpen, onClose, sermon = null }) {
             <div className="animate-in fade-in slide-in-from-bottom-4 space-y-6">
               <div className="flex flex-col md:flex-row gap-6 items-start justify-center">
                 
-                {formData.mediaType === 'video' && (
+                {formData.mediaType === 'video' && (mediaFile || (isEditMode && sermon?.videoUrl)) && (
                   <div className="flex-1 bg-gray-50 p-6 rounded-3xl border border-gray-200 w-full max-w-md">
                     <h3 className="font-bold text-church-navy mb-4 flex items-center"><Film size={18} className="mr-2 text-church-slate" /> Extract from Video</h3>
                     <div className="mb-6">

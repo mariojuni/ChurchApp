@@ -54,10 +54,16 @@ export const trimMedia = async (file, startTime, endTime, onProgress) => {
   return new File([data.buffer], outputName, { type });
 };
 
-export const generateThumbnail = (videoFile, timeInSeconds) => {
+export const generateThumbnail = (videoSource, timeInSeconds) => {
   return new Promise((resolve, reject) => {
     const video = document.createElement('video');
-    video.src = URL.createObjectURL(videoFile);
+    
+    if (typeof videoSource === 'string') {
+      video.src = videoSource;
+    } else {
+      video.src = URL.createObjectURL(videoSource);
+    }
+    
     video.crossOrigin = 'anonymous';
     video.muted = true;
     video.playsInline = true;
@@ -94,9 +100,18 @@ export const generateThumbnail = (videoFile, timeInSeconds) => {
       }, 200); // 200ms delay gives the decoder time to catch up
     };
     
-    video.onerror = (err) => {
-      URL.revokeObjectURL(video.src);
-      reject(new Error('Error loading video for thumbnail'));
+    video.onerror = (e) => {
+      let errMsg = 'Unknown error';
+      if (video.error) {
+        errMsg = `Code ${video.error.code}: ${video.error.message}`;
+      } else if (typeof videoSource === 'string') {
+        errMsg = 'Likely a CORS issue with the remote video URL.';
+      }
+      if (typeof videoSource !== 'string') {
+        URL.revokeObjectURL(video.src);
+      }
+      console.error('Video load error:', video.error, e);
+      reject(new Error(`Error loading video for thumbnail. ${errMsg}`));
     };
   });
 };

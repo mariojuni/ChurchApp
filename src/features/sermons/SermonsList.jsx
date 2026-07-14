@@ -190,7 +190,7 @@ export default function SermonsList() {
                 
                 {/* Actions Dropdown */}
                 {isManager && (
-                  <div className="absolute top-4 right-4 relative">
+                  <div className="absolute top-4 right-4">
                     <button 
                       onClick={() => toggleMenu(sermon.id)}
                       className="p-2 text-gray-500 hover:text-church-navy bg-white/80 hover:bg-white rounded-full transition-colors backdrop-blur-sm shadow-sm"
@@ -244,19 +244,19 @@ export default function SermonsList() {
                 
                 <div className="flex items-center text-sm font-medium text-church-slate mb-3">
                   <User size={14} className="mr-1.5" />
-                  {sermon.speakerName}
+                  {sermon.preacherName}
                 </div>
                 
-                {sermon.passage && (
+                {sermon.scriptureReference && (
                   <div className="inline-flex items-center self-start px-2.5 py-1 rounded-md text-xs font-bold bg-blue-50 text-blue-700 mb-3">
                     <BookOpen size={12} className="mr-1.5" />
-                    {sermon.passage}
+                    {sermon.scriptureReference}
                   </div>
                 )}
                 
-                {sermon.seriesId && (
+                {sermon.seriesTitle && (
                   <p className="text-xs font-medium text-church-slate uppercase tracking-wider mb-2">
-                    Series: {sermon.seriesId}
+                    Series: {sermon.seriesTitle}
                   </p>
                 )}
               </div>
