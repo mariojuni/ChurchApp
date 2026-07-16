@@ -5,6 +5,7 @@ import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
 import { trimMedia, compressAudio, compressVideo, generateThumbnail } from '../../utils/mediaProcessor';
+import ModernDatePicker from '../../components/ui/ModernDatePicker';
 
 const STEPS = ['Details', 'Upload', 'Trim', 'Thumbnail', 'Optimize', 'Review'];
 const EDIT_STEPS = ['Details', 'Thumbnail', 'Review'];
@@ -374,7 +375,11 @@ export default function SermonFormModal({ isOpen, onClose, sermon = null }) {
               <div className="grid grid-cols-3 gap-5">
                 <div>
                   <label className="block text-sm font-medium text-church-navy mb-1">Date Preached *</label>
-                  <input type="date" name="sermonDate" value={formData.sermonDate} onChange={handleTextChange} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-church-green focus:outline-none" />
+                  <ModernDatePicker 
+                    name="sermonDate" 
+                    value={formData.sermonDate} 
+                    onChange={handleTextChange} 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-church-navy mb-1">Scripture Ref</label>

@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Search, Plus, MoreVertical, Filter, Edit, Archive, Eye, UploadCloud, Users } from 'lucide-react';
 import MemberFormModal from './MemberFormModal';
 import MemberProfileModal from './MemberProfileModal';
+import ModernDropdown from '../../components/ui/ModernDropdown';
 import * as XLSX from 'xlsx';
 
 export default function MembersList() {
@@ -367,21 +368,22 @@ export default function MembersList() {
               />
             </div>
             
-            <div className="flex items-center border border-gray-300 rounded-full bg-white px-1 py-1 shadow-sm">
-              <span className="text-xs font-bold text-gray-400 pl-3 pr-2 uppercase">Status:</span>
-              <select 
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-bold text-gray-400 uppercase">Status:</span>
+              <ModernDropdown
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="text-sm font-bold text-church-navy bg-transparent focus:outline-none pr-3 py-1 cursor-pointer"
-              >
-                <option value="All">Active & Inactive</option>
-                <option value="Active">Active Only</option>
-                <option value="Visitor">Visitors</option>
-                <option value="Fellowship">Fellowship</option>
-                <option value="Transferred">Transferred</option>
-                <option value="Deceased">Deceased</option>
-                <option value="Archived">Archived</option>
-              </select>
+                onChange={(val) => setFilterStatus(val)}
+                className="w-48"
+                options={[
+                  { value: 'All', label: 'Active & Inactive' },
+                  { value: 'Active', label: 'Active Only' },
+                  { value: 'Visitor', label: 'Visitors' },
+                  { value: 'Fellowship', label: 'Fellowship' },
+                  { value: 'Transferred', label: 'Transferred' },
+                  { value: 'Deceased', label: 'Deceased' },
+                  { value: 'Archived', label: 'Archived' }
+                ]}
+              />
             </div>
           </div>
         </div>

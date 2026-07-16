@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
+import ModernDropdown from '../../components/ui/ModernDropdown';
 
 export default function ChurchFormModal({ isOpen, onClose, church = null }) {
   const { currentUser } = useAuth();
@@ -95,10 +96,14 @@ export default function ChurchFormModal({ isOpen, onClose, church = null }) {
           </div>
           <div>
             <label className="block text-sm font-medium text-church-navy mb-1">Status</label>
-            <select name="status" value={formData.status} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-church-green focus:border-transparent">
-              <option value="Active">Active</option>
-              <option value="Disabled">Disabled</option>
-            </select>
+            <ModernDropdown
+              value={formData.status}
+              onChange={(val) => handleChange({ target: { name: 'status', value: val } })}
+              options={[
+                { value: 'Active', label: 'Active' },
+                { value: 'Disabled', label: 'Disabled' }
+              ]}
+            />
           </div>
         </form>
 

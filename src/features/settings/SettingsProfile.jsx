@@ -3,6 +3,7 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../firebase';
 import { Save, Upload, MapPin, Phone, Mail, Clock, Plus, Trash2, Globe } from 'lucide-react';
+import ModernDropdown from '../../components/ui/ModernDropdown';
 
 const CHURCH_ID = 'YmEc6C69Xz4DKRQaQZBV';
 
@@ -361,15 +362,13 @@ export default function SettingsProfile() {
                     </div>
                     
                     <div className="flex-1 grid grid-cols-3 gap-3">
-                      <select 
-                        value={service.day}
-                        onChange={(e) => updateService(index, 'day', e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none bg-white"
-                      >
-                        {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(d => (
-                          <option key={d} value={d}>{d}</option>
-                        ))}
-                      </select>
+                      <div className="w-full">
+                        <ModernDropdown
+                          value={service.day}
+                          onChange={(val) => updateService(index, 'day', val)}
+                          options={['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(d => ({ value: d, label: d }))}
+                        />
+                      </div>
                       
                       <input 
                         type="text" 

@@ -3,6 +3,7 @@ import { ArrowLeft, Save, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getSongImportSettings, updateSongImportSettings } from './worshipService';
+import ModernDropdown from '../../components/ui/ModernDropdown';
 
 export default function ImportSettingsPage() {
   const navigate = useNavigate();
@@ -151,18 +152,26 @@ export default function ImportSettingsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>
               <label className="block text-sm font-semibold text-church-navy mb-2">Default Format</label>
-              <select name="defaultChordFormat" value={settings.defaultChordFormat} onChange={handleChange} className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-church-green focus:ring-1 focus:ring-church-green">
-                <option value="chordpro">ChordPro (Recommended)</option>
-                <option value="plain_text">Plain Text</option>
-              </select>
+              <ModernDropdown
+                value={settings.defaultChordFormat}
+                onChange={(val) => handleChange({ target: { name: 'defaultChordFormat', value: val } })}
+                options={[
+                  { value: 'chordpro', label: 'ChordPro (Recommended)' },
+                  { value: 'plain_text', label: 'Plain Text' }
+                ]}
+              />
             </div>
             <div>
               <label className="block text-sm font-semibold text-church-navy mb-2">Default Visibility</label>
-              <select name="defaultVisibility" value={settings.defaultVisibility} onChange={handleChange} className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-church-green focus:ring-1 focus:ring-church-green">
-                <option value="worship_team_only">Worship Team Only</option>
-                <option value="church_members">Church Members</option>
-                <option value="private">Private (Admin only)</option>
-              </select>
+              <ModernDropdown
+                value={settings.defaultVisibility}
+                onChange={(val) => handleChange({ target: { name: 'defaultVisibility', value: val } })}
+                options={[
+                  { value: 'worship_team_only', label: 'Worship Team Only' },
+                  { value: 'church_members', label: 'Church Members' },
+                  { value: 'private', label: 'Private (Admin only)' }
+                ]}
+              />
             </div>
           </div>
 

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { createSetlist, updateSetlist } from './worshipService';
 import { useAuth } from '../../context/AuthContext';
+import ModernDropdown from '../../components/ui/ModernDropdown';
+import ModernDatePicker from '../../components/ui/ModernDatePicker';
 
 export default function SetlistFormModal({ isOpen, onClose, setlist, events, onSaved }) {
   const { userProfile, currentUser } = useAuth();
@@ -94,22 +96,16 @@ export default function SetlistFormModal({ isOpen, onClose, setlist, events, onS
           <form id="setlist-form" onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-semibold text-church-navy mb-2">Linked Event *</label>
-              <select 
-                name="eventId" 
-                required 
-                value={formData.eventId} 
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-church-green focus:ring-1 focus:ring-church-green"
-              >
-                <option value="">-- Select an Event --</option>
-                {Object.values(events)
-                  .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
-                  .map(event => (
-                  <option key={event.id} value={event.id}>
-                    {event.date} | {event.title}
-                  </option>
-                ))}
-              </select>
+              <ModernDropdown
+                value={formData.eventId}
+                onChange={(val) => handleChange({ target: { name: 'eventId', value: val } })}
+                options={[
+                  { value: '', label: '-- Select an Event --' },
+                  ...Object.values(events)
+                    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+                    .map(event => ({ value: event.id, label: `${event.date} | ${event.title}` }))
+                ]}
+              />
             </div>
 
             <div>
@@ -126,27 +122,24 @@ export default function SetlistFormModal({ isOpen, onClose, setlist, events, onS
 
             <div>
               <label className="block text-sm font-semibold text-church-navy mb-2">Service Date</label>
-              <input 
-                type="date" 
+              <ModernDatePicker 
                 name="serviceDate" 
                 value={formData.serviceDate} 
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-church-green focus:ring-1 focus:ring-church-green" 
               />
             </div>
 
             <div>
               <label className="block text-sm font-semibold text-church-navy mb-2">Status</label>
-              <select 
-                name="status"
-                value={formData.status} 
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-church-green focus:ring-1 focus:ring-church-green"
-              >
-                <option value="draft">Draft (Private)</option>
-                <option value="published">Published (Visible to Team)</option>
-                <option value="archived">Archived</option>
-              </select>
+              <ModernDropdown
+                value={formData.status}
+                onChange={(val) => handleChange({ target: { name: 'status', value: val } })}
+                options={[
+                  { value: 'draft', label: 'Draft (Private)' },
+                  { value: 'published', label: 'Published (Visible to Team)' },
+                  { value: 'archived', label: 'Archived' }
+                ]}
+              />
             </div>
           </form>
         </div>

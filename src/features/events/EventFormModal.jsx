@@ -3,6 +3,9 @@ import { X } from 'lucide-react';
 import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
+import ModernDropdown from '../../components/ui/ModernDropdown';
+import ModernDatePicker from '../../components/ui/ModernDatePicker';
+import ModernTimePicker from '../../components/ui/ModernTimePicker';
 
 const EVENT_CATEGORIES = [
   'Worship Service', 'Sunday School', 'Prayer Meeting', 'Bible Study', 
@@ -146,33 +149,26 @@ export default function EventFormModal({ isOpen, onClose, event = null }) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-church-navy mb-1">Date</label>
-              <input 
-                type="date" 
+              <ModernDatePicker 
                 name="date"
-                required
                 value={formData.date}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow" 
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-church-navy mb-1">Start Time</label>
-              <input 
-                type="time" 
+              <ModernTimePicker 
                 name="startTime"
                 value={formData.startTime}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow" 
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-church-navy mb-1">End Time</label>
-              <input 
-                type="time" 
+              <ModernTimePicker 
                 name="endTime"
                 value={formData.endTime}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow" 
               />
             </div>
           </div>
@@ -205,29 +201,23 @@ export default function EventFormModal({ isOpen, onClose, event = null }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
             <div>
               <label className="block text-sm font-medium text-church-navy mb-1">Event Category</label>
-              <select 
-                name="category"
+              <ModernDropdown
                 value={formData.category}
-                onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow bg-white" 
-              >
-                {EVENT_CATEGORIES.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
+                onChange={(val) => handleChange({ target: { name: 'category', value: val } })}
+                options={EVENT_CATEGORIES.map(cat => ({ value: cat, label: cat }))}
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-church-navy mb-1">Status</label>
-              <select 
-                name="status"
+              <ModernDropdown
                 value={formData.status}
-                onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow bg-white" 
-              >
-                <option value="Draft">Draft</option>
-                <option value="Published">Published</option>
-                <option value="Cancelled">Cancelled</option>
-              </select>
+                onChange={(val) => handleChange({ target: { name: 'status', value: val } })}
+                options={[
+                  { value: 'Draft', label: 'Draft' },
+                  { value: 'Published', label: 'Published' },
+                  { value: 'Cancelled', label: 'Cancelled' }
+                ]}
+              />
             </div>
           </div>
 

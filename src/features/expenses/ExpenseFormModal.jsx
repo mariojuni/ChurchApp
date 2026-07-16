@@ -4,6 +4,8 @@ import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
+import ModernDropdown from '../../components/ui/ModernDropdown';
+import ModernDatePicker from '../../components/ui/ModernDatePicker';
 
 const CATEGORIES = [
   'Utilities',
@@ -150,13 +152,10 @@ export default function ExpenseFormModal({ isOpen, onClose, expense = null }) {
               </div>
               <div>
                 <label className="block text-sm font-medium text-church-navy mb-1">Date *</label>
-                <input 
-                  type="date" 
+                <ModernDatePicker 
                   name="date"
-                  required
                   value={formData.date}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow" 
                 />
               </div>
             </div>
@@ -176,16 +175,11 @@ export default function ExpenseFormModal({ isOpen, onClose, expense = null }) {
               </div>
               <div>
                 <label className="block text-sm font-medium text-church-navy mb-1">Category *</label>
-                <select 
-                  name="category"
+                <ModernDropdown
                   value={formData.category}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow bg-white"
-                >
-                  {CATEGORIES.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
+                  onChange={(val) => handleChange({ target: { name: 'category', value: val } })}
+                  options={CATEGORIES.map(cat => ({ value: cat, label: cat }))}
+                />
               </div>
             </div>
 

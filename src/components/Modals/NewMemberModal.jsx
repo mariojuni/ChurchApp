@@ -3,6 +3,8 @@ import { db } from '../../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { X } from 'lucide-react';
 import { DEFAULT_AVATAR, resizeAndConvertToBase64 } from '../../utils/image';
+import ModernDropdown from '../ui/ModernDropdown';
+import ModernDatePicker from '../ui/ModernDatePicker';
 
 export default function NewMemberModal({ isOpen, onClose, showToast }) {
   const [name, setName] = useState('');
@@ -114,34 +116,40 @@ export default function NewMemberModal({ isOpen, onClose, showToast }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div className="form-group">
               <label>Role</label>
-              <select className="form-select" value={role} onChange={(e) => setRole(e.target.value)}>
-                <option value="Member">Member</option>
-                <option value="Staff">Staff</option>
-                <option value="Elder">Elder</option>
-                <option value="Worship Team">Worship Team</option>
-                <option value="Youth Leader">Youth Leader</option>
-                <option value="Children's Ministry">Children's Ministry</option>
-              </select>
+              <ModernDropdown
+                value={role}
+                onChange={(val) => setRole(val)}
+                options={[
+                  { value: 'Member', label: 'Member' },
+                  { value: 'Staff', label: 'Staff' },
+                  { value: 'Elder', label: 'Elder' },
+                  { value: 'Worship Team', label: 'Worship Team' },
+                  { value: 'Youth Leader', label: 'Youth Leader' },
+                  { value: "Children's Ministry", label: "Children's Ministry" }
+                ]}
+              />
             </div>
 
             <div className="form-group">
               <label>Status</label>
-              <select className="form-select" value={status} onChange={(e) => setStatus(e.target.value)}>
-                <option value="active">Active</option>
-                <option value="new">New</option>
-                <option value="fellowship">Fellowship</option>
-                <option value="inactive">Inactive</option>
-                <option value="deceased">Deceased</option>
-                <option value="transferred">Transferred</option>
-              </select>
+              <ModernDropdown
+                value={status}
+                onChange={(val) => setStatus(val)}
+                options={[
+                  { value: 'active', label: 'Active' },
+                  { value: 'new', label: 'New' },
+                  { value: 'fellowship', label: 'Fellowship' },
+                  { value: 'inactive', label: 'Inactive' },
+                  { value: 'deceased', label: 'Deceased' },
+                  { value: 'transferred', label: 'Transferred' }
+                ]}
+              />
             </div>
           </div>
 
           <div className="form-group">
             <label>Birth Date</label>
-            <input 
-              type="date" 
-              className="form-input" 
+            <ModernDatePicker 
               value={birthDate} 
               onChange={(e) => setBirthDate(e.target.value)} 
             />

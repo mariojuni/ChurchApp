@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { db } from '../../firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { Mail, Lock, User, AlertCircle, Shield } from 'lucide-react';
+import ModernDropdown from '../ui/ModernDropdown';
 
 export default function Register() {
   const [name, setName] = useState('');
@@ -114,26 +115,14 @@ export default function Register() {
 
           <div className="input-group">
             <label>Role (For Testing)</label>
-            <div className="input-with-icon">
-              <Shield size={18} />
-              <select 
+              <ModernDropdown
                 value={role}
-                onChange={(e) => setRole(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '14px 14px 14px 40px',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-md)',
-                  background: '#F8F9FB',
-                  fontSize: '15px',
-                  color: 'var(--text-primary)',
-                  appearance: 'none'
-                }}
-              >
-                <option value="member">Member</option>
-                <option value="staff">Staff</option>
-              </select>
-            </div>
+                onChange={(val) => setRole(val)}
+                options={[
+                  { value: 'member', label: 'Member' },
+                  { value: 'staff', label: 'Staff' }
+                ]}
+              />
           </div>
 
           <div className="input-group">

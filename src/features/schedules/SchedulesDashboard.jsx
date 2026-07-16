@@ -174,11 +174,28 @@ export default function SchedulesDashboard() {
                       </div>
                       <div className="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                         {minAssignments.map(a => (
-                          <div key={a.id} className="p-4 border border-gray-100 rounded-xl">
-                            <p className="text-xs text-gray-500 mb-1">{a.eventDate}</p>
-                            <h4 className="font-bold text-church-navy mb-2">{a.eventName}</h4>
+                          <div key={a.id} className="p-4 border border-gray-100 rounded-xl hover:shadow-md transition-shadow relative">
+                            <h4 className="font-bold text-church-navy mb-1 pr-8">{a.eventName}</h4>
+                            <p className="text-xs text-gray-500 mb-2">{a.eventDate}</p>
                             <p className="text-sm font-bold text-church-green">{a.roleName}</p>
                             <p className="text-sm text-church-slate">{a.memberName}</p>
+                            
+                            <div className="absolute top-4 right-4">
+                              <button onClick={() => toggleMenu(a.id)} className="text-gray-400 hover:text-church-navy"><MoreVertical size={16} /></button>
+                              {activeMenuId === a.id && (
+                                <>
+                                  <div className="fixed inset-0 z-10" onClick={() => setActiveMenuId(null)} />
+                                  <div className="absolute right-0 top-6 w-32 bg-white border border-gray-100 shadow-lg rounded-xl z-20 py-1 text-left">
+                                    <button onClick={() => { setActiveMenuId(null); setEditingAssignment(a); setIsModalOpen(true); }} className="w-full text-left px-4 py-2 text-sm text-church-navy hover:bg-gray-50 flex items-center">
+                                      <Edit size={14} className="mr-2" /> Edit
+                                    </button>
+                                    <button onClick={() => handleDelete(a.id)} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center">
+                                      <Trash2 size={14} className="mr-2" /> Delete
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -196,13 +213,30 @@ export default function SchedulesDashboard() {
                       </div>
                       <div className="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                         {memAssignments.map(a => (
-                          <div key={a.id} className="p-4 border border-gray-100 rounded-xl">
-                            <p className="text-xs text-gray-500 mb-1">{a.eventDate}</p>
-                            <h4 className="font-bold text-church-navy mb-2">{a.eventName}</h4>
+                          <div key={a.id} className="p-4 border border-gray-100 rounded-xl hover:shadow-md transition-shadow relative">
+                            <h4 className="font-bold text-church-navy mb-1 pr-8">{a.eventName}</h4>
+                            <p className="text-xs text-gray-500 mb-2">{a.eventDate}</p>
                             <p className="text-sm font-bold text-church-green">{a.ministryName} • {a.roleName}</p>
-                            <span className={`inline-block mt-2 text-[10px] uppercase font-bold px-2 py-0.5 rounded ${a.status === 'Confirmed' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}>
+                            <span className={`inline-block mt-2 text-[10px] uppercase font-bold px-2 py-0.5 rounded ${a.status === 'Confirmed' ? 'bg-green-100 text-green-700' : (a.status === 'Declined' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700')}`}>
                               {a.status}
                             </span>
+                            
+                            <div className="absolute top-4 right-4">
+                              <button onClick={() => toggleMenu(a.id)} className="text-gray-400 hover:text-church-navy"><MoreVertical size={16} /></button>
+                              {activeMenuId === a.id && (
+                                <>
+                                  <div className="fixed inset-0 z-10" onClick={() => setActiveMenuId(null)} />
+                                  <div className="absolute right-0 top-6 w-32 bg-white border border-gray-100 shadow-lg rounded-xl z-20 py-1 text-left">
+                                    <button onClick={() => { setActiveMenuId(null); setEditingAssignment(a); setIsModalOpen(true); }} className="w-full text-left px-4 py-2 text-sm text-church-navy hover:bg-gray-50 flex items-center">
+                                      <Edit size={14} className="mr-2" /> Edit
+                                    </button>
+                                    <button onClick={() => handleDelete(a.id)} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center">
+                                      <Trash2 size={14} className="mr-2" /> Delete
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>

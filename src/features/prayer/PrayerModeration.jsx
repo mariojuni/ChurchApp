@@ -3,8 +3,9 @@ import { collection, query, orderBy, onSnapshot, deleteDoc, doc, updateDoc, wher
 import { db } from '../../firebase';
 import { Plus, HeartHandshake, CheckCircle, XCircle, Trash2, Edit, Check, Shield, Search, Filter } from 'lucide-react';
 import PrayerRequestModal from './PrayerRequestModal';
-import { useAuth } from '../../context/AuthContext';
 import { canModeratePrayerRequests } from '../../utils/permissions';
+import ModernDropdown from '../../components/ui/ModernDropdown';
+import { useAuth } from '../../context/AuthContext';
 
 export default function PrayerModeration() {
   const { userProfile, currentUser } = useAuth();
@@ -214,61 +215,61 @@ export default function PrayerModeration() {
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center border border-gray-300 rounded-full bg-white px-1 py-1 shadow-sm">
             <span className="text-xs font-bold text-gray-400 pl-3 pr-2 uppercase">Status:</span>
-            <select 
+            <ModernDropdown
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="text-sm font-bold text-church-navy bg-transparent focus:outline-none pr-3 py-1 cursor-pointer"
-            >
-              <option value="all">All</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="answered">Answered</option>
-              <option value="rejected">Rejected</option>
-            </select>
+              onChange={(val) => setStatusFilter(val)}
+              options={[
+                { value: 'all', label: 'All' },
+                { value: 'pending', label: 'Pending' },
+                { value: 'approved', label: 'Approved' },
+                { value: 'answered', label: 'Answered' },
+                { value: 'rejected', label: 'Rejected' }
+              ]}
+            />
           </div>
 
           <div className="flex items-center border border-gray-300 rounded-full bg-white px-1 py-1 shadow-sm">
             <span className="text-xs font-bold text-gray-400 pl-3 pr-2 uppercase">Category:</span>
-            <select 
+            <ModernDropdown
               value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="text-sm font-bold text-church-navy bg-transparent focus:outline-none pr-3 py-1 cursor-pointer"
-            >
-              <option value="all">All Categories</option>
-              <option value="healing">Healing</option>
-              <option value="family">Family</option>
-              <option value="spiritual_growth">Spiritual Growth</option>
-              <option value="provision">Provision</option>
-              <option value="thanksgiving">Thanksgiving</option>
-              <option value="other">Other</option>
-            </select>
+              onChange={(val) => setCategoryFilter(val)}
+              options={[
+                { value: 'all', label: 'All Categories' },
+                { value: 'healing', label: 'Healing' },
+                { value: 'family', label: 'Family' },
+                { value: 'spiritual_growth', label: 'Spiritual Growth' },
+                { value: 'provision', label: 'Provision' },
+                { value: 'thanksgiving', label: 'Thanksgiving' },
+                { value: 'other', label: 'Other' }
+              ]}
+            />
           </div>
 
           <div className="flex items-center border border-gray-300 rounded-full bg-white px-1 py-1 shadow-sm">
             <span className="text-xs font-bold text-gray-400 pl-3 pr-2 uppercase">Visibility:</span>
-            <select 
+            <ModernDropdown
               value={visibilityFilter}
-              onChange={(e) => setVisibilityFilter(e.target.value)}
-              className="text-sm font-bold text-church-navy bg-transparent focus:outline-none pr-3 py-1 cursor-pointer"
-            >
-              <option value="all">All</option>
-              <option value="public">Public</option>
-              <option value="leaders_only">Leaders Only</option>
-            </select>
+              onChange={(val) => setVisibilityFilter(val)}
+              options={[
+                { value: 'all', label: 'All' },
+                { value: 'public', label: 'Public' },
+                { value: 'leaders_only', label: 'Leaders Only' }
+              ]}
+            />
           </div>
 
           <div className="flex items-center border border-gray-300 rounded-full bg-white px-1 py-1 shadow-sm">
             <span className="text-xs font-bold text-gray-400 pl-3 pr-2 uppercase">Date:</span>
-            <select 
+            <ModernDropdown
               value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="text-sm font-bold text-church-navy bg-transparent focus:outline-none pr-3 py-1 cursor-pointer"
-            >
-              <option value="all">All Time</option>
-              <option value="today">Today</option>
-              <option value="week">Past 7 Days</option>
-              <option value="month">Past 30 Days</option>
-            </select>
+              onChange={(val) => setDateFilter(val)}
+              options={[
+                { value: 'all', label: 'All Time' },
+                { value: 'today', label: 'Today' },
+                { value: 'week', label: 'Past 7 Days' },
+                { value: 'month', label: 'Past 30 Days' }
+              ]}
+            />
           </div>
         </div>
       </div>

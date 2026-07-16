@@ -3,6 +3,8 @@ import { X } from 'lucide-react';
 import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
+import ModernDropdown from '../../components/ui/ModernDropdown';
+import ModernDatePicker from '../../components/ui/ModernDatePicker';
 
 export default function MemberFormModal({ isOpen, onClose, member = null }) {
   const { userProfile, currentUser } = useAuth();
@@ -147,15 +149,23 @@ export default function MemberFormModal({ isOpen, onClose, member = null }) {
                 
                 <div>
                   <label className="block text-sm font-medium text-church-navy mb-1">Birthday</label>
-                  <input type="date" name="birthday" value={formData.birthday} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow" />
+                  <ModernDatePicker 
+                    name="birthday" 
+                    value={formData.birthday} 
+                    onChange={handleChange} 
+                  />
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-church-navy mb-1">Gender</label>
-                  <select name="gender" value={formData.gender} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow bg-white">
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                  </select>
+                  <ModernDropdown
+                    value={formData.gender}
+                    onChange={(val) => handleChange({ target: { name: 'gender', value: val } })}
+                    options={[
+                      { value: 'Male', label: 'Male' },
+                      { value: 'Female', label: 'Female' }
+                    ]}
+                  />
                 </div>
               </div>
             </div>
@@ -192,35 +202,47 @@ export default function MemberFormModal({ isOpen, onClose, member = null }) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-church-navy mb-1">Status</label>
-                  <select name="membershipStatus" value={formData.membershipStatus} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow bg-white">
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                    <option value="Visitor">Visitor</option>
-                    <option value="Fellowship">Fellowship</option>
-                    <option value="Transferred">Transferred</option>
-                    <option value="Deceased">Deceased</option>
-                    <option value="Archived">Archived</option>
-                  </select>
+                  <ModernDropdown
+                    value={formData.membershipStatus}
+                    onChange={(val) => handleChange({ target: { name: 'membershipStatus', value: val } })}
+                    options={[
+                      { value: 'Active', label: 'Active' },
+                      { value: 'Inactive', label: 'Inactive' },
+                      { value: 'Visitor', label: 'Visitor' },
+                      { value: 'Fellowship', label: 'Fellowship' },
+                      { value: 'Transferred', label: 'Transferred' },
+                      { value: 'Deceased', label: 'Deceased' },
+                      { value: 'Archived', label: 'Archived' }
+                    ]}
+                  />
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-church-navy mb-1">System Role</label>
-                  <select name="role" value={formData.role} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow bg-white">
-                    <option value="member">Member</option>
-                    <option value="ministry_leader">Ministry Leader</option>
-                    <option value="pastor">Pastor</option>
-                    <option value="secretary">Secretary</option>
-                    <option value="finance_admin">Finance Admin</option>
-                    <option value="church_admin">Church Admin</option>
-                  </select>
+                  <ModernDropdown
+                    value={formData.role}
+                    onChange={(val) => handleChange({ target: { name: 'role', value: val } })}
+                    options={[
+                      { value: 'member', label: 'Member' },
+                      { value: 'ministry_leader', label: 'Ministry Leader' },
+                      { value: 'pastor', label: 'Pastor' },
+                      { value: 'secretary', label: 'Secretary' },
+                      { value: 'finance_admin', label: 'Finance Admin' },
+                      { value: 'church_admin', label: 'Church Admin' }
+                    ]}
+                  />
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-church-navy mb-1">Baptism Status</label>
-                  <select name="baptismStatus" value={formData.baptismStatus} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow bg-white">
-                    <option value="Not Baptized">Not Baptized</option>
-                    <option value="Baptized">Baptized</option>
-                  </select>
+                  <ModernDropdown
+                    value={formData.baptismStatus}
+                    onChange={(val) => handleChange({ target: { name: 'baptismStatus', value: val } })}
+                    options={[
+                      { value: 'Not Baptized', label: 'Not Baptized' },
+                      { value: 'Baptized', label: 'Baptized' }
+                    ]}
+                  />
                 </div>
                 
                 <div>

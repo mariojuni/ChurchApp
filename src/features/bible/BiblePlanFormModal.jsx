@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, FileText, Check } from 'lucide-react';
 import { collection, doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
+import ModernDropdown from '../../components/ui/ModernDropdown';
+import ModernDatePicker from '../../components/ui/ModernDatePicker';
 
 const CHURCH_ID = 'YmEc6C69Xz4DKRQaQZBV'; 
 
@@ -215,22 +217,18 @@ export default function BiblePlanFormModal({ isOpen, onClose, plan = null }) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-church-navy mb-1">Start Date</label>
-                <input 
-                  type="date" 
+                <ModernDatePicker 
                   name="startDate"
                   value={formData.startDate}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow" 
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-church-navy mb-1">End Date</label>
-                <input 
-                  type="date" 
+                <ModernDatePicker 
                   name="endDate"
                   value={formData.endDate}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow" 
                 />
               </div>
             </div>
@@ -249,16 +247,15 @@ export default function BiblePlanFormModal({ isOpen, onClose, plan = null }) {
               </div>
               <div>
                 <label className="block text-sm font-medium text-church-navy mb-1">Status</label>
-                <select 
-                  name="status"
+                <ModernDropdown
                   value={formData.status}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow bg-white"
-                >
-                  <option value="draft">Draft</option>
-                  <option value="active">Active</option>
-                  <option value="completed">Completed</option>
-                </select>
+                  onChange={(val) => handleChange({ target: { name: 'status', value: val } })}
+                  options={[
+                    { value: 'draft', label: 'Draft' },
+                    { value: 'active', label: 'Active' },
+                    { value: 'completed', label: 'Completed' }
+                  ]}
+                />
               </div>
             </div>
 

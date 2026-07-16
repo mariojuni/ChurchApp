@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { createSong, updateSong } from './worshipService';
 import { useAuth } from '../../context/AuthContext';
+import ModernDropdown from '../../components/ui/ModernDropdown';
 
 export default function SongFormModal({ isOpen, onClose, song, onSaved }) {
   const { userProfile, currentUser } = useAuth();
@@ -233,16 +234,15 @@ export default function SongFormModal({ isOpen, onClose, song, onSaved }) {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-church-navy mb-2">Status</label>
-                <select 
-                  name="status"
-                  value={formData.status} 
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-church-green focus:ring-1 focus:ring-church-green"
-                >
-                  <option value="active">Active</option>
-                  <option value="draft">Draft</option>
-                  <option value="archived">Archived</option>
-                </select>
+                <ModernDropdown
+                  value={formData.status}
+                  onChange={(val) => handleChange({ target: { name: 'status', value: val } })}
+                  options={[
+                    { value: 'active', label: 'Active' },
+                    { value: 'draft', label: 'Draft' },
+                    { value: 'archived', label: 'Archived' }
+                  ]}
+                />
               </div>
             </div>
 

@@ -3,6 +3,7 @@ import { X, Plus, Trash2, Users, BookOpen, Monitor, Mic, Guitar, Drum, Piano, Gr
 import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
+import ModernDropdown from '../../components/ui/ModernDropdown';
 
 const normalizeRole = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
 
@@ -86,12 +87,21 @@ const AVAILABLE_ICONS = [
 export default function MinistryFormModal({ isOpen, onClose, ministry = null }) {
   const { userProfile } = useAuth();
   
+  const [activeTab, setActiveTab] = useState('general');
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     status: 'Active',
     roles: ['Leader', 'Member'],
-    roleDetails: {}
+    roleDetails: {},
+    features: {
+      staffScreenEnabled: false,
+      worshipTabEnabled: false,
+      serveSchedulingEnabled: false,
+      songLibraryEnabled: false,
+      setlistEnabled: false,
+      chordChartEnabled: false
+    }
   });
   const [newRole, setNewRole] = useState('');
   const [selectedColor, setSelectedColor] = useState(PALETTE[0]);
@@ -106,7 +116,15 @@ export default function MinistryFormModal({ isOpen, onClose, ministry = null }) 
         description: ministry.description || '',
         status: ministry.status || 'Active',
         roles: ministry.roles || ['Leader', 'Member'],
-        roleDetails: ministry.roleDetails || {}
+        roleDetails: ministry.roleDetails || {},
+        features: ministry.features || {
+          staffScreenEnabled: false,
+          worshipTabEnabled: false,
+          serveSchedulingEnabled: false,
+          songLibraryEnabled: false,
+          setlistEnabled: false,
+          chordChartEnabled: false
+        }
       });
     } else {
       setFormData({
@@ -114,19 +132,46 @@ export default function MinistryFormModal({ isOpen, onClose, ministry = null }) 
         description: '',
         status: 'Active',
         roles: ['Leader', 'Member'],
-        roleDetails: {}
+        roleDetails: {},
+        features: {
+          staffScreenEnabled: false,
+          worshipTabEnabled: false,
+          serveSchedulingEnabled: false,
+          songLibraryEnabled: false,
+          setlistEnabled: false,
+          chordChartEnabled: false
+        }
       });
     }
     setError('');
     setNewRole('');
     setSelectedColor(PALETTE[0]);
     setSelectedIcon('Users');
+    setActiveTab('general');
   }, [ministry, isOpen]);
 
   if (!isOpen) return null;
 
   const handleChange = (e) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleFeatureChange = (featureKey) => {
+    setFormData(prev => {
+      const currentFeatures = prev.features || {};
+      let updatedFeatures = {
+        ...currentFeatures,
+        [featureKey]: !currentFeatures[featureKey]
+      };
+      // Auto-enable staffScreenEnabled if worshipTabEnabled is true
+      if (featureKey === 'worshipTabEnabled' && updatedFeatures.worshipTabEnabled) {
+        updatedFeatures.staffScreenEnabled = true;
+      }
+      return {
+        ...prev,
+        features: updatedFeatures
+      };
+    });
   };
 
   const handleAddRole = (e) => {
@@ -195,32 +240,118 @@ export default function MinistryFormModal({ isOpen, onClose, ministry = null }) 
           </button>
         </div>
         
+        <div className="flex border-b border-gray-100 px-6 pt-2 bg-gray-50/50">
+          <button
+            onClick={() => setActiveTab('general')}
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'general' ? 'border-church-green text-church-green' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          >
+            General
+          </button>
+          <button
+            onClick={() => setActiveTab('features')}
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'features' ? 'border-church-green text-church-green' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          >
+            Features
+          </button>
+          <button
+            onClick={() => setActiveTab('roles')}
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'roles' ? 'border-church-green text-church-green' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          >
+            Roles
+          </button>
+        </div>
+
         <form onSubmit={handleSubmit} className="p-6 space-y-6 flex-1 overflow-y-auto">
           {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">{error}</div>}
           
-          <div>
-            <label className="block text-sm font-medium text-church-navy mb-1">Ministry Name *</label>
-            <input type="text" name="name" required value={formData.name} onChange={handleChange} placeholder="e.g. Praise and Worship" className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green" />
+          <div className={activeTab === 'general' ? 'block' : 'hidden'}>
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-church-navy mb-1">Ministry Name *</label>
+                <input type="text" name="name" required value={formData.name} onChange={handleChange} placeholder="e.g. Praise and Worship" className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-church-navy mb-1">Description</label>
+                <textarea name="description" rows="3" value={formData.description} onChange={handleChange} placeholder="What is the purpose of this ministry?" className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green resize-none"></textarea>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-church-navy mb-1">Status</label>
+                <ModernDropdown
+                  value={formData.status}
+                  onChange={(val) => handleChange({ target: { name: 'status', value: val } })}
+                  options={[
+                    { value: 'Active', label: 'Active' },
+                    { value: 'Archived', label: 'Archived' }
+                  ]}
+                />
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-church-navy mb-1">Description</label>
-            <textarea name="description" rows="3" value={formData.description} onChange={handleChange} placeholder="What is the purpose of this ministry?" className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green resize-none"></textarea>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-church-navy mb-1">Status</label>
-            <select name="status" value={formData.status} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green bg-white">
-              <option value="Active">Active</option>
-              <option value="Archived">Archived</option>
-            </select>
-          </div>
-
-          <div className="pt-4 border-t border-gray-100">
-            <label className="block text-sm font-medium text-church-navy mb-2">Custom Roles</label>
-            <p className="text-xs text-church-slate mb-3">Define the specific roles members can have in this ministry (e.g. Vocalist, Drummer, Sound Tech).</p>
+          <div className={activeTab === 'features' ? 'block' : 'hidden'}>
+            <p className="text-xs text-church-slate mb-4">Enable specific Staff Management features for active members of this ministry.</p>
             
-            <div className="flex flex-wrap gap-2 mb-4">
+            <div className="space-y-4">
+              <label className="flex items-start space-x-3 cursor-pointer">
+                <input 
+                  type="checkbox"
+                  checked={formData.features?.worshipTabEnabled || false}
+                  onChange={() => handleFeatureChange('worshipTabEnabled')}
+                  className="mt-1 w-4 h-4 text-church-green border-gray-300 rounded focus:ring-church-green"
+                />
+                <div>
+                  <span className="block text-sm font-medium text-church-navy">Enable Worship Tab in Staff Management</span>
+                  <span className="block text-xs text-church-slate">Active members of this ministry will see the Worship tab in Staff Management.</span>
+                </div>
+              </label>
+
+              <label className="flex items-start space-x-3 cursor-pointer">
+                <input 
+                  type="checkbox"
+                  checked={formData.features?.songLibraryEnabled || false}
+                  onChange={() => handleFeatureChange('songLibraryEnabled')}
+                  className="mt-1 w-4 h-4 text-church-green border-gray-300 rounded focus:ring-church-green"
+                />
+                <div>
+                  <span className="block text-sm font-medium text-church-navy">Enable Song Library Access</span>
+                  <span className="block text-xs text-church-slate">Allows members to view the song library.</span>
+                </div>
+              </label>
+
+              <label className="flex items-start space-x-3 cursor-pointer">
+                <input 
+                  type="checkbox"
+                  checked={formData.features?.setlistEnabled || false}
+                  onChange={() => handleFeatureChange('setlistEnabled')}
+                  className="mt-1 w-4 h-4 text-church-green border-gray-300 rounded focus:ring-church-green"
+                />
+                <div>
+                  <span className="block text-sm font-medium text-church-navy">Enable Setlist Access</span>
+                  <span className="block text-xs text-church-slate">Allows members to view worship setlists.</span>
+                </div>
+              </label>
+
+              <label className="flex items-start space-x-3 cursor-pointer">
+                <input 
+                  type="checkbox"
+                  checked={formData.features?.chordChartEnabled || false}
+                  onChange={() => handleFeatureChange('chordChartEnabled')}
+                  className="mt-1 w-4 h-4 text-church-green border-gray-300 rounded focus:ring-church-green"
+                />
+                <div>
+                  <span className="block text-sm font-medium text-church-navy">Enable Chord Chart Access</span>
+                  <span className="block text-xs text-church-slate">Allows members to view chord charts for songs.</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div className={activeTab === 'roles' ? 'block' : 'hidden'}>
+            <p className="text-xs text-church-slate mb-4">Define the specific roles members can have in this ministry (e.g. Vocalist, Drummer, Sound Tech).</p>
+            
+            <div className="flex flex-wrap gap-2 mb-4 max-h-[120px] overflow-y-auto p-1">
               {formData.roles.map(role => {
                 const customDetails = formData.roleDetails?.[role];
                 const bg = customDetails?.color || getRoleBg(role);
@@ -253,7 +384,7 @@ export default function MinistryFormModal({ isOpen, onClose, ministry = null }) 
                   onChange={(e) => setNewRole(e.target.value)} 
                   placeholder="New Role Name" 
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-church-green"
-                  onKeyDown={(e) => { if(e.key === 'Enter') handleAddRole(e); }}
+                  onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); handleAddRole(e); } }}
                 />
               </div>
               
@@ -277,15 +408,11 @@ export default function MinistryFormModal({ isOpen, onClose, ministry = null }) 
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1.5">Role Icon</label>
                   <div className="flex items-center">
-                    <select
+                    <ModernDropdown
                       value={selectedIcon}
-                      onChange={(e) => setSelectedIcon(e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-church-green bg-white mr-2"
-                    >
-                      {AVAILABLE_ICONS.map(icon => (
-                        <option key={icon.name} value={icon.name}>{icon.name}</option>
-                      ))}
-                    </select>
+                      onChange={(val) => setSelectedIcon(val)}
+                      options={AVAILABLE_ICONS.map(icon => ({ value: icon.name, label: icon.name }))}
+                    />
                     {(() => {
                       const IconComp = AVAILABLE_ICONS.find(i => i.name === selectedIcon)?.Icon;
                       return IconComp ? <div className="w-8 h-8 flex flex-shrink-0 items-center justify-center bg-white border border-gray-200 rounded-lg"><IconComp size={16} color="#4B5563" /></div> : null;

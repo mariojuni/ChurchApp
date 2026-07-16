@@ -5,6 +5,7 @@ import { getSetlist, getSetlistItems, getSongs, createSetlistItem, deleteSetlist
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import ModernDropdown from '../../components/ui/ModernDropdown';
 
 export default function SetlistDetails() {
   const { id } = useParams();
@@ -173,16 +174,18 @@ export default function SetlistDetails() {
             <h3 className="text-base font-bold text-church-navy mb-4">Add Song</h3>
             <div className="space-y-4">
               <div>
-                <select 
+                <ModernDropdown
                   value={selectedSongId}
-                  onChange={(e) => setSelectedSongId(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-church-green focus:ring-1 focus:ring-church-green"
-                >
-                  <option value="">-- Choose a song --</option>
-                  {availableSongs.map(song => (
-                    <option key={song.id} value={song.id}>{song.title} {song.artist ? `(${song.artist})` : ''}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setSelectedSongId(val)}
+                  options={[
+                    { value: '', label: '-- Choose a song --' },
+                    ...availableSongs.map(song => ({
+                      value: song.id,
+                      label: `${song.title} ${song.artist ? `(${song.artist})` : ''}`
+                    }))
+                  ]}
+                  searchable={availableSongs.length > 10}
+                />
               </div>
               <button 
                 onClick={handleAddSong}

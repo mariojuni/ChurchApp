@@ -5,6 +5,7 @@ import { Search, Plus, MoreVertical, Edit, Archive, Users, Shield } from 'lucide
 import { useNavigate } from 'react-router-dom';
 import MinistryFormModal from './MinistryFormModal';
 import { useAuth } from '../../context/AuthContext';
+import ModernDropdown from '../../components/ui/ModernDropdown';
 
 export default function MinistriesList() {
   const [ministries, setMinistries] = useState([]);
@@ -128,15 +129,15 @@ export default function MinistriesList() {
             
             <div className="flex items-center border border-gray-300 rounded-full bg-white px-1 py-1 shadow-sm">
               <span className="text-xs font-bold text-gray-400 pl-3 pr-2 uppercase">Status:</span>
-              <select 
+              <ModernDropdown
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="text-sm font-bold text-church-navy bg-transparent focus:outline-none pr-3 py-1 cursor-pointer"
-              >
-                <option value="Active">Active</option>
-                <option value="Archived">Archived</option>
-                <option value="All">All Ministries</option>
-              </select>
+                onChange={(val) => setFilterStatus(val)}
+                options={[
+                  { value: 'Active', label: 'Active' },
+                  { value: 'Archived', label: 'Archived' },
+                  { value: 'All', label: 'All Ministries' }
+                ]}
+              />
             </div>
           </div>
         </div>

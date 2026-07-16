@@ -4,6 +4,7 @@ import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebas
 import { db, storage } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
 import { X, Save, Play, Pause, CheckCircle, Archive, AlertCircle, Image as ImageIcon, Trash2 } from 'lucide-react';
+import ModernDropdown from '../../components/ui/ModernDropdown';
 
 export default function CampaignFormModal({ isOpen, onClose, campaign }) {
   const { userProfile, originalUserProfile } = useAuth();
@@ -519,19 +520,17 @@ export default function CampaignFormModal({ isOpen, onClose, campaign }) {
           </div>
           <div>
             <label className="block text-xs font-semibold text-church-slate mb-1">Campaign Type</label>
-            <select
-              name="campaignType"
-              required
+            <ModernDropdown
               value={formData.campaignType}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-church-green bg-white"
-            >
-              <option value="building_project">Building Project</option>
-              <option value="ministry_fundraising">Ministry Fundraising</option>
-              <option value="missions">Missions</option>
-              <option value="event">Event</option>
-              <option value="special_project">Special Project</option>
-            </select>
+              onChange={(val) => handleChange({ target: { name: 'campaignType', value: val } })}
+              options={[
+                { value: 'building_project', label: 'Building Project' },
+                { value: 'ministry_fundraising', label: 'Ministry Fundraising' },
+                { value: 'missions', label: 'Missions' },
+                { value: 'event', label: 'Event' },
+                { value: 'special_project', label: 'Special Project' }
+              ]}
+            />
           </div>
         </div>
 

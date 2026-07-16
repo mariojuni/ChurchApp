@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { doc, onSnapshot, collection, query, orderBy, getDocs, writeBatch, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { ArrowLeft, Search, CheckCircle, XCircle, Clock, FileWarning, Users, QrCode } from 'lucide-react';
+import ModernDropdown from '../../components/ui/ModernDropdown';
 
 export default function TakeAttendance() {
   const { id } = useParams();
@@ -216,18 +217,18 @@ export default function TakeAttendance() {
 
             <div className="flex items-center border border-gray-300 rounded-full bg-white px-1 py-1 shadow-sm">
               <span className="text-xs font-bold text-gray-400 pl-3 pr-2 uppercase">Show:</span>
-              <select 
+              <ModernDropdown
                 value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="text-sm font-bold text-church-navy bg-transparent focus:outline-none pr-3 py-1 cursor-pointer"
-              >
-                <option value="All">All Members</option>
-                <option value="Unmarked">Unmarked Only</option>
-                <option value="Present">Present</option>
-                <option value="Absent">Absent</option>
-                <option value="Late">Late</option>
-                <option value="Excused">Excused</option>
-              </select>
+                onChange={(val) => setFilterType(val)}
+                options={[
+                  { value: 'All', label: 'All Members' },
+                  { value: 'Unmarked', label: 'Unmarked Only' },
+                  { value: 'Present', label: 'Present' },
+                  { value: 'Absent', label: 'Absent' },
+                  { value: 'Late', label: 'Late' },
+                  { value: 'Excused', label: 'Excused' }
+                ]}
+              />
             </div>
           </div>
 

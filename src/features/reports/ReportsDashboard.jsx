@@ -4,6 +4,8 @@ import { db } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
 import { FileText, Download, Calendar, Users, CreditCard, Activity } from 'lucide-react';
 import { canManageGiving } from '../../utils/permissions';
+import ModernDropdown from '../../components/ui/ModernDropdown';
+import ModernDatePicker from '../../components/ui/ModernDatePicker';
 
 export default function ReportsDashboard() {
   const { userProfile, activeChurchId } = useAuth();
@@ -82,23 +84,33 @@ export default function ReportsDashboard() {
       <div className="bg-white rounded-3xl p-6 shadow-church-soft border border-gray-100 flex flex-wrap gap-4 items-end">
         <div>
           <label className="block text-xs font-bold text-church-slate uppercase mb-1">Preset Range</label>
-          <select value={dateRange} onChange={e => setDateRange(e.target.value)} className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm font-bold text-church-navy">
-            <option>This Week</option>
-            <option>This Month</option>
-            <option>This Quarter</option>
-            <option>This Year</option>
-            <option>Custom</option>
-          </select>
+          <ModernDropdown
+            value={dateRange}
+            onChange={(val) => setDateRange(val)}
+            options={[
+              { value: 'This Week', label: 'This Week' },
+              { value: 'This Month', label: 'This Month' },
+              { value: 'This Quarter', label: 'This Quarter' },
+              { value: 'This Year', label: 'This Year' },
+              { value: 'Custom', label: 'Custom' }
+            ]}
+          />
         </div>
         {dateRange === 'Custom' && (
           <>
             <div>
               <label className="block text-xs font-bold text-church-slate uppercase mb-1">Start Date</label>
-              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm" />
+              <ModernDatePicker 
+                value={startDate} 
+                onChange={e => setStartDate(e.target.value)} 
+              />
             </div>
             <div>
               <label className="block text-xs font-bold text-church-slate uppercase mb-1">End Date</label>
-              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm" />
+              <ModernDatePicker 
+                value={endDate} 
+                onChange={e => setEndDate(e.target.value)} 
+              />
             </div>
           </>
         )}

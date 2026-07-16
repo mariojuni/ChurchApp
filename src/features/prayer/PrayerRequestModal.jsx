@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
+import ModernDropdown from '../../components/ui/ModernDropdown';
 
 export default function PrayerRequestModal({ isOpen, onClose, request = null, churchId }) {
   const { currentUser } = useAuth();
@@ -120,47 +121,44 @@ export default function PrayerRequestModal({ isOpen, onClose, request = null, ch
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-church-navy mb-1">Status</label>
-                <select 
-                  name="status"
+                <ModernDropdown
                   value={formData.status}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow bg-white"
-                >
-                  <option value="pending">Pending</option>
-                  <option value="approved">Approved</option>
-                  <option value="answered">Answered</option>
-                  <option value="rejected">Rejected</option>
-                </select>
+                  onChange={(val) => handleChange({ target: { name: 'status', value: val } })}
+                  options={[
+                    { value: 'pending', label: 'Pending' },
+                    { value: 'approved', label: 'Approved' },
+                    { value: 'answered', label: 'Answered' },
+                    { value: 'rejected', label: 'Rejected' }
+                  ]}
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-church-navy mb-1">Visibility</label>
-                <select 
-                  name="visibility"
+                <ModernDropdown
                   value={formData.visibility}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow bg-white"
-                >
-                  <option value="public">Public Wall</option>
-                  <option value="leaders_only">Leaders Only</option>
-                </select>
+                  onChange={(val) => handleChange({ target: { name: 'visibility', value: val } })}
+                  options={[
+                    { value: 'public', label: 'Public Wall' },
+                    { value: 'leaders_only', label: 'Leaders Only' }
+                  ]}
+                />
               </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-church-navy mb-1">Category</label>
-              <select 
-                name="category"
+              <ModernDropdown
                 value={formData.category}
-                onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow bg-white"
-              >
-                <option value="healing">Healing</option>
-                <option value="family">Family</option>
-                <option value="spiritual_growth">Spiritual Growth</option>
-                <option value="provision">Provision</option>
-                <option value="thanksgiving">Thanksgiving</option>
-                <option value="other">Other</option>
-              </select>
+                onChange={(val) => handleChange({ target: { name: 'category', value: val } })}
+                options={[
+                  { value: 'healing', label: 'Healing' },
+                  { value: 'family', label: 'Family' },
+                  { value: 'spiritual_growth', label: 'Spiritual Growth' },
+                  { value: 'provision', label: 'Provision' },
+                  { value: 'thanksgiving', label: 'Thanksgiving' },
+                  { value: 'other', label: 'Other' }
+                ]}
+              />
             </div>
 
             <div className="pt-4 flex justify-end space-x-3">

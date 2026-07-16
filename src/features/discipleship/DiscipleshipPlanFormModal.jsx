@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, BookOpen, Check } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { createDiscipleshipPlan, updateDiscipleshipPlan } from './discipleshipService';
+import ModernDropdown from '../../components/ui/ModernDropdown';
 
 export default function DiscipleshipPlanFormModal({ isOpen, onClose, plan = null, onSave }) {
   const { userProfile, currentUser } = useAuth();
@@ -181,17 +182,16 @@ export default function DiscipleshipPlanFormModal({ isOpen, onClose, plan = null
 
               <div>
                 <label className="block text-sm font-bold text-church-navy mb-1.5">Language</label>
-                <select
-                  name="language"
+                <ModernDropdown
                   value={formData.language}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:border-church-green focus:ring-1 focus:ring-church-green outline-none transition-all"
-                >
-                  <option value="English">English</option>
-                  <option value="Tagalog">Tagalog</option>
-                  <option value="Cebuano">Cebuano</option>
-                  <option value="Spanish">Spanish</option>
-                </select>
+                  onChange={(val) => handleChange({ target: { name: 'language', value: val } })}
+                  options={[
+                    { value: 'English', label: 'English' },
+                    { value: 'Tagalog', label: 'Tagalog' },
+                    { value: 'Cebuano', label: 'Cebuano' },
+                    { value: 'Spanish', label: 'Spanish' }
+                  ]}
+                />
               </div>
 
               <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-gray-50 rounded-xl border border-gray-100">
@@ -221,29 +221,27 @@ export default function DiscipleshipPlanFormModal({ isOpen, onClose, plan = null
 
               <div>
                 <label className="block text-sm font-bold text-church-navy mb-1.5">Visibility</label>
-                <select
-                  name="visibility"
+                <ModernDropdown
                   value={formData.visibility}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:border-church-green focus:ring-1 focus:ring-church-green outline-none transition-all"
-                >
-                  <option value="church_members_only">Church Members Only</option>
-                  <option value="public">Public</option>
-                </select>
+                  onChange={(val) => handleChange({ target: { name: 'visibility', value: val } })}
+                  options={[
+                    { value: 'church_members_only', label: 'Church Members Only' },
+                    { value: 'public', label: 'Public' }
+                  ]}
+                />
               </div>
 
               <div>
                 <label className="block text-sm font-bold text-church-navy mb-1.5">Status</label>
-                <select
-                  name="status"
+                <ModernDropdown
                   value={formData.status}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:border-church-green focus:ring-1 focus:ring-church-green outline-none transition-all"
-                >
-                  <option value="draft">Draft (Hidden)</option>
-                  <option value="published">Published</option>
-                  <option value="archived">Archived</option>
-                </select>
+                  onChange={(val) => handleChange({ target: { name: 'status', value: val } })}
+                  options={[
+                    { value: 'draft', label: 'Draft (Hidden)' },
+                    { value: 'published', label: 'Published' },
+                    { value: 'archived', label: 'Archived' }
+                  ]}
+                />
               </div>
               
               <div>

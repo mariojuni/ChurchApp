@@ -3,6 +3,8 @@ import { X, DollarSign } from 'lucide-react';
 import { collection, addDoc, doc, updateDoc, serverTimestamp, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
+import ModernDropdown from '../../components/ui/ModernDropdown';
+import ModernDatePicker from '../../components/ui/ModernDatePicker';
 
 export default function GivingFormModal({ isOpen, onClose, record = null }) {
   const { userProfile, currentUser } = useAuth();
@@ -176,13 +178,10 @@ export default function GivingFormModal({ isOpen, onClose, record = null }) {
               </div>
               <div>
                 <label className="block text-sm font-medium text-church-navy mb-1.5">Date *</label>
-                <input 
-                  type="date" 
+                <ModernDatePicker 
                   name="date"
-                  required
                   value={formData.date}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow" 
                 />
               </div>
             </div>
@@ -190,37 +189,33 @@ export default function GivingFormModal({ isOpen, onClose, record = null }) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-church-navy mb-1.5">Fund Type *</label>
-                <select 
-                  name="fundType"
-                  required
+                <ModernDropdown
                   value={formData.fundType}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow bg-white appearance-none" 
-                >
-                  <option value="Tithe">Tithe</option>
-                  <option value="Offering">Offering</option>
-                  <option value="Building Fund">Building Fund</option>
-                  <option value="Altar Project">Altar Project</option>
-                  <option value="Special Project">Special Project</option>
-                  <option value="Others">Others</option>
-                </select>
+                  onChange={(val) => handleChange({ target: { name: 'fundType', value: val } })}
+                  options={[
+                    { value: 'Tithe', label: 'Tithe' },
+                    { value: 'Offering', label: 'Offering' },
+                    { value: 'Building Fund', label: 'Building Fund' },
+                    { value: 'Altar Project', label: 'Altar Project' },
+                    { value: 'Special Project', label: 'Special Project' },
+                    { value: 'Others', label: 'Others' }
+                  ]}
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-church-navy mb-1.5">Method *</label>
-                <select 
-                  name="method"
-                  required
+                <ModernDropdown
                   value={formData.method}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow bg-white appearance-none" 
-                >
-                  <option value="Cash">Cash</option>
-                  <option value="GCash">GCash</option>
-                  <option value="Maya">Maya</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
-                  <option value="Check">Check</option>
-                  <option value="Online Payment">Online Payment</option>
-                </select>
+                  onChange={(val) => handleChange({ target: { name: 'method', value: val } })}
+                  options={[
+                    { value: 'Cash', label: 'Cash' },
+                    { value: 'GCash', label: 'GCash' },
+                    { value: 'Maya', label: 'Maya' },
+                    { value: 'Bank Transfer', label: 'Bank Transfer' },
+                    { value: 'Check', label: 'Check' },
+                    { value: 'Online Payment', label: 'Online Payment' }
+                  ]}
+                />
               </div>
             </div>
 

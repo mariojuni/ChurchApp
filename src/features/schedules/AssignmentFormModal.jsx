@@ -3,7 +3,8 @@ import { collection, addDoc, getDocs, query, where, updateDoc, doc } from 'fireb
 import { db } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
 import { X, AlertCircle } from 'lucide-react';
-
+import ModernDropdown from '../../components/ui/ModernDropdown';
+import ModernTimePicker from '../../components/ui/ModernTimePicker';
 export default function AssignmentFormModal({ isOpen, onClose, existingAssignment = null, defaultEventId = null }) {
   const { userProfile } = useAuth();
   
@@ -209,97 +210,49 @@ export default function AssignmentFormModal({ isOpen, onClose, existingAssignmen
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4">
           <div>
             <label className="block text-sm font-bold text-church-navy mb-1">Event *</label>
-            <select 
-              value={selectedEvent} 
-              onChange={e => setSelectedEvent(e.target.value)} 
-              className="w-full px-4 py-2 border border-gray-300 rounded-xl bg-gray-50 text-sm"
-              required
-            >
-              <option value="">-- Select Event --</option>
-              {events.map(ev => (
-                <option key={ev.id} value={ev.id}>{ev.title} ({ev.date || 'No date'})</option>
-              ))}
-            </select>
+            <ModernDropdown 
+              value={selectedEvent}
+              onChange={(val) => setSelectedEvent(val)}
+              options={events.map(ev => ({ value: ev.id, label: `${ev.title} (${ev.date || 'No date'})` }))}
+              placeholder="-- Select Event --"
+            />
           </div>
 
           <div>
             <label className="block text-sm font-bold text-church-navy mb-1">Ministry *</label>
-            <select 
-              value={selectedMinistry} 
-              onChange={e => {
-                setSelectedMinistry(e.target.value);
+            <ModernDropdown 
+              value={selectedMinistry}
+              onChange={(val) => {
+                setSelectedMinistry(val);
                 setSelectedRole('');
                 setSelectedMember('');
-              }} 
-              className="w-full px-4 py-2 border border-gray-300 rounded-xl bg-gray-50 text-sm"
-              required
-            >
-              <option value="">-- Select Ministry --</option>
-              {ministries.map(m => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </select>
+              }}
+              options={ministries.map(m => ({ value: m.id, label: m.name }))}
+              placeholder="-- Select Ministry --"
+            />
           </div>
 
           {selectedMinistry && (
             <>
               <div>
                 <label className="block text-sm font-bold text-church-navy mb-1">Role *</label>
-                <select 
-                  value={selectedRole} 
-                  onChange={e => setSelectedRole(e.target.value)} 
-                  className="w-full px-4 py-2 border border-gray-300 rounded-xl bg-gray-50 text-sm"
-                  required
-                >
-                  <option value="">-- Select Role --</option>
-                  {activeMinistry?.roles?.filter(r => !takenRoles.includes(r)).map(r => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
+                <ModernDropdown 
+                  value={selectedRole}
+                  onChange={(val) => setSelectedRole(val)}
+                  options={(activeMinistry?.roles || []).filter(r => !takenRoles.includes(r)).map(r => ({ value: r, label: r }))}
+                  placeholder="-- Select Role --"
+                />
               </div>
               
-              <div className="relative">
+              <div>
                 <label className="block text-sm font-bold text-church-navy mb-1">Search & Select Member *</label>
-                <div className="relative">
-                  <input 
-                    type="text"
-                    value={memberSearchTerm}
-                    onChange={e => {
-                      setMemberSearchTerm(e.target.value);
-                      setIsMemberDropdownOpen(true);
-                      if (selectedMember) {
-                        setSelectedMember('');
-                      }
-                    }}
-                    onFocus={() => setIsMemberDropdownOpen(true)}
-                    onBlur={() => setTimeout(() => setIsMemberDropdownOpen(false), 200)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-xl bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-church-green"
-                    placeholder="Type to search ALL members..."
-                    required={!selectedMember}
-                  />
-                  {isMemberDropdownOpen && memberSearchTerm && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                       {allMembers
-                         .filter(m => (m.displayName || m.name || '').toLowerCase().includes(memberSearchTerm.toLowerCase()))
-                         .map(m => (
-                           <div 
-                             key={m.id} 
-                             className="px-4 py-2 hover:bg-church-green/10 cursor-pointer text-sm text-church-navy font-medium"
-                             onClick={() => {
-                               setSelectedMember(m.id);
-                               setMemberSearchTerm(m.displayName || m.name);
-                               setIsMemberDropdownOpen(false);
-                             }}
-                           >
-                             {m.displayName || m.name}
-                           </div>
-                       ))}
-                       {allMembers.filter(m => (m.displayName || m.name || '').toLowerCase().includes(memberSearchTerm.toLowerCase())).length === 0 && (
-                         <div className="px-4 py-3 text-sm text-gray-500 italic">No members found.</div>
-                       )}
-                    </div>
-                  )}
-                </div>
+                <ModernDropdown 
+                  value={selectedMember}
+                  onChange={(val) => setSelectedMember(val)}
+                  options={allMembers.map(m => ({ value: m.id, label: m.displayName || m.name || 'Unknown' }))}
+                  placeholder="-- Select Member --"
+                  searchable={true}
+                />
               </div>
             </>
           )}
@@ -314,25 +267,25 @@ export default function AssignmentFormModal({ isOpen, onClose, existingAssignmen
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-bold text-church-navy mb-1">Call Time</label>
-              <input 
-                type="time" 
+              <ModernTimePicker 
+                name="callTime"
                 value={callTime}
                 onChange={e => setCallTime(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl bg-gray-50 text-sm"
               />
             </div>
             <div>
               <label className="block text-sm font-bold text-church-navy mb-1">Status</label>
-              <select 
-                value={status} 
-                onChange={e => setStatus(e.target.value)} 
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl bg-gray-50 text-sm"
-              >
-                <option value="Pending">Pending</option>
-                <option value="Confirmed">Confirmed</option>
-                <option value="Declined">Declined</option>
-                <option value="Completed">Completed</option>
-              </select>
+              <ModernDropdown 
+                value={status}
+                onChange={(val) => setStatus(val)}
+                options={[
+                  { value: 'Pending', label: 'Pending' },
+                  { value: 'Confirmed', label: 'Confirmed' },
+                  { value: 'Declined', label: 'Declined' },
+                  { value: 'Completed', label: 'Completed' },
+                ]}
+                placeholder="-- Select Status --"
+              />
             </div>
           </div>
 

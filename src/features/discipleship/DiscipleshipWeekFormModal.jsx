@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, BookOpen, Check } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { saveDiscipleshipWeeks } from './discipleshipService';
+import ModernDropdown from '../../components/ui/ModernDropdown';
 
 export default function DiscipleshipWeekFormModal({ isOpen, onClose, planId, week = null, nextWeekNumber = 1, onSave }) {
   const { userProfile } = useAuth();
@@ -297,16 +298,15 @@ export default function DiscipleshipWeekFormModal({ isOpen, onClose, planId, wee
 
               <div>
                 <label className="block text-sm font-bold text-church-navy mb-1.5">Status</label>
-                <select
-                  name="status"
+                <ModernDropdown
                   value={formData.status}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:border-church-green outline-none"
-                >
-                  <option value="draft">Draft</option>
-                  <option value="published">Published</option>
-                  <option value="hidden">Hidden</option>
-                </select>
+                  onChange={(val) => handleChange({ target: { name: 'status', value: val } })}
+                  options={[
+                    { value: 'draft', label: 'Draft' },
+                    { value: 'published', label: 'Published' },
+                    { value: 'hidden', label: 'Hidden' }
+                  ]}
+                />
               </div>
             </div>
           </form>
