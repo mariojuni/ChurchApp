@@ -4,6 +4,7 @@ import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where 
 import { db } from '../../firebase';
 import { ClipboardCheck, Plus, Calendar, Users, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import NewAttendanceSessionModal from '../../components/Modals/NewAttendanceSessionModal';
 
 export default function AttendanceDashboard() {
   const { userProfile } = useAuth();
@@ -11,8 +12,7 @@ export default function AttendanceDashboard() {
 
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isCreating, setIsCreating] = useState(false);
-  
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -36,35 +36,8 @@ export default function AttendanceDashboard() {
     return () => unsubscribe();
   }, [CHURCH_ID]);
 
-  const handleCreateSession = async () => {
-    setIsCreating(true);
-    const eventName = prompt("Enter the name of this service or event (e.g. Sunday Service - Morning):");
-    
-    if (eventName && eventName.trim()) {
-      try {
-        const newDoc = await addDoc(collection(db, 'attendance_sessions'), {
-          eventName: eventName.trim(),
-          date: new Date().toISOString(),
-          status: 'Open',
-          metrics: {
-            present: 0,
-            absent: 0,
-            late: 0,
-            excused: 0,
-            visitors: 0
-          },
-          createdAt: serverTimestamp(),
-          churchId: CHURCH_ID
-        });
-        navigate(`/admin/attendance/${newDoc.id}`);
-      } catch (err) {
-        console.error(err);
-        alert("Failed to create attendance session.");
-        setIsCreating(false);
-      }
-    } else {
-      setIsCreating(false);
-    }
+  const handleCreateSession = () => {
+    setIsModalOpen(true);
   };
 
   return (
@@ -76,11 +49,10 @@ export default function AttendanceDashboard() {
         </div>
         <button 
           onClick={handleCreateSession}
-          disabled={isCreating}
-          className="flex items-center px-5 py-2.5 bg-church-green text-white rounded-full shadow-md text-sm font-bold hover:bg-church-green/90 transition-opacity disabled:opacity-50"
+          className="flex items-center px-5 py-2.5 bg-church-green text-white rounded-full shadow-md text-sm font-bold hover:bg-church-green/90 transition-opacity"
         >
           <Plus size={18} className="mr-2" />
-          {isCreating ? 'Creating...' : 'New Session'}
+          New Session
         </button>
       </div>
 
@@ -154,6 +126,7 @@ export default function AttendanceDashboard() {
           )}
         </div>
       </div>
+      <NewAttendanceSessionModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 }
