@@ -164,3 +164,11 @@ export function getAssignableRoles(userProfile) {
   if (hasRole(userProfile, 'church_admin')) return SYSTEM_ROLES.filter(r => r !== 'super_admin');
   return [];
 }
+
+/**
+ * Can manage events (create, edit, delete, generate).
+ * Roles: super_admin, church_admin, pastor, secretary
+ */
+export function canManageEvents(userProfile) {
+  return hasAnyRole(userProfile, ['super_admin', 'church_admin', 'pastor', 'secretary']);
+}

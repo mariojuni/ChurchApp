@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, deleteDoc, doc, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
 import { Plus, Calendar as CalendarIcon, Edit, Trash2, MapPin, Clock, MoreVertical, Users, CheckCircle2, AlertCircle } from 'lucide-react';
 import EventFormModal from './EventFormModal';
 import { useNavigate } from 'react-router-dom';
+import { canManageEvents } from '../../utils/permissions';
+import GenerateMonthlyEventsModal from './GenerateMonthlyEventsModal';
 
 export default function EventsList() {
   const { userProfile } = useAuth();
@@ -15,6 +17,10 @@ export default function EventsList() {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
+  const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedEvents, setSelectedEvents] = useState([]);
+  const canManage = canManageEvents(userProfile);
   
   // Action menu state
   const [activeMenuId, setActiveMenuId] = useState(null);
@@ -62,6 +68,39 @@ export default function EventsList() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedEvents.length === 0) return;
+    if (window.confirm(`Are you sure you want to delete ${selectedEvents.length} selected events?`)) {
+      try {
+        const batch = writeBatch(db);
+        selectedEvents.forEach(id => {
+          batch.delete(doc(db, 'events', id));
+        });
+        await batch.commit();
+        setSelectedEvents([]);
+        setIsSelectionMode(false);
+      } catch (error) {
+        console.error("Error deleting documents: ", error);
+        alert("Failed to delete selected events.");
+      }
+    }
+  };
+  
+  const toggleSelectionMode = () => {
+    setIsSelectionMode(!isSelectionMode);
+    setSelectedEvents([]);
+    setActiveMenuId(null);
+  };
+
+  const toggleEventSelect = (e, id) => {
+    e.stopPropagation();
+    if (selectedEvents.includes(id)) {
+      setSelectedEvents(selectedEvents.filter(eventId => eventId !== id));
+    } else {
+      setSelectedEvents([...selectedEvents, id]);
+    }
+  };
+
   const toggleMenu = (e, id) => {
     e.stopPropagation();
     setActiveMenuId(activeMenuId === id ? null : id);
@@ -82,13 +121,53 @@ export default function EventsList() {
           <h1 className="text-3xl font-bold text-church-navy">Events</h1>
           <p className="text-sm text-church-slate mt-1">Manage upcoming church events and schedules.</p>
         </div>
-        <button 
-          onClick={handleAddClick}
-          className="flex items-center px-5 py-2.5 bg-church-green text-white rounded-full shadow-md text-sm font-medium hover:bg-church-green/90 transition-opacity"
-        >
-          <Plus size={18} className="mr-2" />
-          Create Event
-        </button>
+        {canManage && (
+          <div className="flex flex-wrap gap-2 items-center justify-end">
+            {isSelectionMode ? (
+              <>
+                <button 
+                  onClick={handleBulkDelete}
+                  disabled={selectedEvents.length === 0}
+                  className="flex items-center px-4 py-2 bg-red-50 text-red-600 rounded-full text-sm font-medium hover:bg-red-100 transition-colors disabled:opacity-50 border border-red-200"
+                >
+                  <Trash2 size={16} className="mr-2" />
+                  Delete Selected ({selectedEvents.length})
+                </button>
+                <button 
+                  onClick={toggleSelectionMode}
+                  className="flex items-center px-4 py-2 bg-white border border-gray-300 text-church-slate rounded-full shadow-sm text-sm font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                {events.length > 0 && (
+                  <button 
+                    onClick={toggleSelectionMode}
+                    className="flex items-center px-4 py-2 bg-white border border-gray-300 text-church-slate rounded-full shadow-sm text-sm font-medium hover:bg-gray-50 transition-colors"
+                  >
+                    Select
+                  </button>
+                )}
+                <button 
+                  onClick={() => setIsGeneratorOpen(true)}
+                  className="flex items-center px-4 py-2 bg-white border border-church-green text-church-green rounded-full shadow-sm text-sm font-medium hover:bg-green-50 transition-colors hidden sm:flex"
+                >
+                  <CalendarIcon size={16} className="mr-2" />
+                  Generate Events
+                </button>
+                <button 
+                  onClick={handleAddClick}
+                  className="flex items-center px-4 py-2 bg-church-green text-white rounded-full shadow-md text-sm font-medium hover:bg-church-green/90 transition-opacity"
+                >
+                  <Plus size={16} className="mr-1" />
+                  Create Event
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </div>
       
       {loading ? (
@@ -102,21 +181,36 @@ export default function EventsList() {
           </div>
           <h3 className="text-xl font-bold text-church-navy mb-2">No upcoming events</h3>
           <p className="text-church-slate text-center max-w-sm mb-6">Schedule your next church event, meeting, or service here.</p>
-          <button 
-            onClick={handleAddClick}
-            className="px-6 py-3 bg-white border border-gray-300 text-church-navy rounded-full text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm"
-          >
-            Create Event
-          </button>
+          {canManage && (
+            <button 
+              onClick={handleAddClick}
+              className="px-6 py-3 bg-white border border-gray-300 text-church-navy rounded-full text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm"
+            >
+              Create Event
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {events.map(event => (
             <div 
               key={event.id} 
-              onClick={() => navigate(`/admin/events/${event.id}`)}
-              className="bg-white rounded-2xl p-5 shadow-church-soft border border-gray-100 flex items-center relative group transition-all hover:shadow-md cursor-pointer"
+              onClick={(e) => isSelectionMode ? toggleEventSelect(e, event.id) : navigate(`/admin/events/${event.id}`)}
+              className={`bg-white rounded-2xl p-5 shadow-church-soft border flex items-center relative group transition-all hover:shadow-md cursor-pointer ${
+                selectedEvents.includes(event.id) ? 'border-church-green bg-green-50/10' : 'border-gray-100'
+              }`}
             >
+              {/* Selection Checkbox */}
+              {isSelectionMode && (
+                <div className="mr-4">
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+                    selectedEvents.includes(event.id) ? 'bg-church-green border-church-green text-white' : 'border-gray-300 bg-white'
+                  }`}>
+                    {selectedEvents.includes(event.id) && <CheckCircle2 size={14} className="text-white" />}
+                  </div>
+                </div>
+              )}
+              
               {/* Date Box */}
               <div className="flex-shrink-0 w-16 h-16 rounded-xl bg-church-green/10 flex flex-col items-center justify-center text-church-green mr-5 border border-church-green/20">
                 <span className="text-xs font-semibold uppercase">
@@ -168,34 +262,36 @@ export default function EventsList() {
               </div>
               
               {/* Actions Dropdown */}
-              <div className="ml-4 relative">
-                <button 
-                  onClick={(e) => toggleMenu(e, event.id)}
-                  className="p-2 text-gray-400 hover:text-church-navy rounded-full hover:bg-gray-50 transition-colors"
-                >
-                  <MoreVertical size={20} />
-                </button>
-                
-                {activeMenuId === event.id && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setActiveMenuId(null)} />
-                    <div className="absolute right-0 top-10 w-36 bg-white rounded-xl shadow-lg border border-gray-100 z-20 py-1">
-                      <button 
-                        onClick={(e) => handleEditClick(e, event)}
-                        className="w-full flex items-center px-4 py-2 text-sm text-church-navy hover:bg-gray-50"
-                      >
-                        <Edit size={14} className="mr-2" /> Edit
-                      </button>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleDeleteClick(event.id, event.title); }}
-                        className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                      >
-                        <Trash2 size={14} className="mr-2" /> Delete
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
+              {canManage && (
+                <div className="ml-4 relative">
+                  <button 
+                    onClick={(e) => toggleMenu(e, event.id)}
+                    className="p-2 text-gray-400 hover:text-church-navy rounded-full hover:bg-gray-50 transition-colors"
+                  >
+                    <MoreVertical size={20} />
+                  </button>
+                  
+                  {activeMenuId === event.id && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setActiveMenuId(null)} />
+                      <div className="absolute right-0 top-10 w-36 bg-white rounded-xl shadow-lg border border-gray-100 z-20 py-1">
+                        <button 
+                          onClick={(e) => handleEditClick(e, event)}
+                          className="w-full flex items-center px-4 py-2 text-sm text-church-navy hover:bg-gray-50"
+                        >
+                          <Edit size={14} className="mr-2" /> Edit
+                        </button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleDeleteClick(event.id, event.title); }}
+                          className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 size={14} className="mr-2" /> Delete
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -205,6 +301,11 @@ export default function EventsList() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         event={editingEvent}
+      />
+
+      <GenerateMonthlyEventsModal
+        isOpen={isGeneratorOpen}
+        onClose={() => setIsGeneratorOpen(false)}
       />
     </div>
   );
