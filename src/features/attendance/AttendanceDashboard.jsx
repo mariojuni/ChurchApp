@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { ClipboardCheck, Plus, Calendar, Users, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -13,7 +13,20 @@ export default function AttendanceDashboard() {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [totalMembers, setTotalMembers] = useState(0);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchMembers = async () => {
+      const q = query(collection(db, 'users'));
+      const snap = await getDocs(q);
+      const activeMembers = snap.docs
+        .map(d => d.data())
+        .filter(m => m.membershipStatus !== 'Archived');
+      setTotalMembers(activeMembers.length);
+    };
+    fetchMembers();
+  }, []);
 
   useEffect(() => {
     if (!CHURCH_ID) return;
@@ -90,7 +103,7 @@ export default function AttendanceDashboard() {
                         <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
                           {isToday ? 'Today' : dateObj.toLocaleDateString()}
                         </span>
-                        <h3 className="text-lg font-bold text-church-navy group-hover:text-church-green transition-colors line-clamp-1">{session.eventName}</h3>
+                        <h3 className="text-lg font-bold text-church-navy group-hover:text-church-green transition-colors line-clamp-1">{session.eventTitle || session.eventName}</h3>
                       </div>
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${session.status === 'Open' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
                         {session.status}
@@ -101,13 +114,13 @@ export default function AttendanceDashboard() {
                       <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
                         <div className="text-xs text-gray-500 mb-1">Total Present</div>
                         <div className="text-2xl font-black text-church-navy">
-                          {(session.metrics?.present || 0) + (session.metrics?.visitors || 0)}
+                          {(session.metrics?.present || 0) + (session.metrics?.visitors || 0)} <span className="text-lg text-gray-400">/ {totalMembers}</span>
                         </div>
                       </div>
                       <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex flex-col justify-center">
                         <div className="text-xs text-gray-500 mb-1 flex justify-between">
                           <span>Members:</span>
-                          <span className="font-bold text-church-navy">{session.metrics?.present || 0}</span>
+                          <span className="font-bold text-church-navy">{session.metrics?.present || 0} / {totalMembers}</span>
                         </div>
                         <div className="text-xs text-gray-500 flex justify-between">
                           <span>Visitors:</span>

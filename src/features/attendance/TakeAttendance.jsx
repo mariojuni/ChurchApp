@@ -4,8 +4,11 @@ import { doc, onSnapshot, collection, query, orderBy, getDocs, writeBatch, updat
 import { db } from '../../firebase';
 import { ArrowLeft, Search, CheckCircle, XCircle, Clock, FileWarning, Users, QrCode } from 'lucide-react';
 import ModernDropdown from '../../components/ui/ModernDropdown';
+import { useAuth } from '../../context/AuthContext';
 
 export default function TakeAttendance() {
+  const { userProfile } = useAuth();
+  const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
   const { id } = useParams();
   const navigate = useNavigate();
   
@@ -48,7 +51,7 @@ export default function TakeAttendance() {
       const initialMarks = {};
       recordsSnap.forEach(r => {
         const data = r.data();
-        if (data.type === 'Member') {
+        if (data.type?.toLowerCase() === 'member') {
           initialMarks[data.memberId] = data.status;
         }
       });
@@ -97,13 +100,26 @@ export default function TakeAttendance() {
         
         // Find member name
         const memberName = members.find(m => m.id === memberId)?.name || 'Unknown';
+        const now = new Date().toISOString();
         
         batch.set(docRef, {
+          id: memberId,
           memberId,
           memberName,
           status,
-          type: 'Member',
-          timestamp: new Date().toISOString()
+          type: 'member',
+          timestamp: now,
+          checkInMethod: 'manual_web',
+          checkedInAt: now,
+          checkedInBy: userProfile?.id || userProfile?.uid || '',
+          churchId: CHURCH_ID,
+          createdAt: now,
+          eventDate: session.date || '',
+          eventId: session.eventId || '',
+          eventTitle: session.eventTitle || session.eventName || '',
+          source: 'web',
+          updatedAt: now,
+          userId: memberId
         }, { merge: true });
 
         if (status === 'Present') newMetrics.present++;
@@ -171,7 +187,7 @@ export default function TakeAttendance() {
           </button>
           <div>
             <h1 className="text-3xl font-bold text-church-navy flex items-center">
-              {session.eventName}
+              {session.eventTitle || session.eventName}
               <span className={`ml-4 inline-flex items-center px-2.5 py-0.5 rounded text-sm font-bold ${session.status === 'Open' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
                 {session.status}
               </span>
@@ -243,15 +259,29 @@ export default function TakeAttendance() {
               onClick={() => {
                 const visitorName = prompt("Enter visitor name:");
                 if(visitorName) {
+                  const now = new Date().toISOString();
+                  const visitorId = `visitor_${Date.now()}`;
                   // Save a visitor immediately to the subcollection
-                  const docRef = doc(collection(db, 'attendance_sessions', id, 'records'));
+                  const docRef = doc(collection(db, 'attendance_sessions', id, 'records'), visitorId);
                   writeBatch(db).set(docRef, {
-                    memberId: `visitor_${Date.now()}`,
+                    id: visitorId,
+                    memberId: visitorId,
                     memberName: visitorName,
                     status: 'Present',
-                    type: 'Visitor',
-                    timestamp: new Date().toISOString()
-                  }).update(doc(db, 'attendance_sessions', id), {
+                    type: 'visitor',
+                    timestamp: now,
+                    checkInMethod: 'manual_web',
+                    checkedInAt: now,
+                    checkedInBy: userProfile?.id || userProfile?.uid || '',
+                    churchId: CHURCH_ID,
+                    createdAt: now,
+                    eventDate: session.date || '',
+                    eventId: session.eventId || '',
+                    eventTitle: session.eventTitle || session.eventName || '',
+                    source: 'web',
+                    updatedAt: now,
+                    userId: visitorId
+                  }, { merge: true }).update(doc(db, 'attendance_sessions', id), {
                     'metrics.visitors': (session.metrics?.visitors || 0) + 1
                   }).commit();
                 }

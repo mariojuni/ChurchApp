@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase';
-import { collection, query, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, getDocs, addDoc, serverTimestamp, doc, setDoc } from 'firebase/firestore';
 import { X } from 'lucide-react';
 import ModernDropdown from '../ui/ModernDropdown';
 import { useAuth } from '../../context/AuthContext';
@@ -67,10 +67,11 @@ export default function NewAttendanceSessionModal({ isOpen, onClose }) {
 
     setIsSubmitting(true);
     try {
-      const newDoc = await addDoc(collection(db, 'attendance_sessions'), {
-        eventName: selectedEvent.title,
+      const sessionRef = doc(db, 'attendance_sessions', selectedEvent.id);
+      await setDoc(sessionRef, {
+        eventTitle: selectedEvent.title,
         eventId: selectedEvent.id, // reference to the event
-        date: new Date().toISOString(),
+        date: selectedEvent.date,
         status: 'Open',
         metrics: {
           present: 0,
@@ -81,9 +82,9 @@ export default function NewAttendanceSessionModal({ isOpen, onClose }) {
         },
         createdAt: serverTimestamp(),
         churchId: CHURCH_ID
-      });
+      }, { merge: true });
       onClose();
-      navigate(`/admin/attendance/${newDoc.id}`);
+      navigate(`/admin/attendance/${selectedEvent.id}`);
     } catch (err) {
       console.error(err);
       alert("Failed to create attendance session: " + err.message);
