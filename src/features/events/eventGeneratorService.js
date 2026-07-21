@@ -13,12 +13,25 @@ export const DAY_OF_WEEK_MAP = {
 
 export const DEFAULT_TEMPLATES = [
   {
+    id: 'template_sunday_school',
+    title: 'Sunday School',
+    category: 'Sunday School',
+    dayOfWeek: 'sunday',
+    startTime: '08:30',
+    endTime: '09:30',
+    location: 'Church Sanctuary',
+    visibility: 'public',
+    attendanceEnabled: true,
+    serveSchedulingEnabled: true,
+    isActive: true,
+  },
+  {
     id: 'template_sunday_worship',
     title: 'Sunday Worship Service',
     category: 'Worship Service',
     dayOfWeek: 'sunday',
-    startTime: '09:00',
-    endTime: '11:00',
+    startTime: '09:30',
+    endTime: '11:45',
     location: 'Church Sanctuary',
     visibility: 'public',
     attendanceEnabled: true,

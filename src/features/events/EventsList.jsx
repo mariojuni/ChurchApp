@@ -7,6 +7,7 @@ import EventFormModal from './EventFormModal';
 import { useNavigate } from 'react-router-dom';
 import { canManageEvents } from '../../utils/permissions';
 import GenerateMonthlyEventsModal from './GenerateMonthlyEventsModal';
+import ModernDropdown from '../../components/ui/ModernDropdown';
 
 export default function EventsList() {
   const { userProfile } = useAuth();
@@ -20,7 +21,14 @@ export default function EventsList() {
   const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedEvents, setSelectedEvents] = useState([]);
+  const [filterMonth, setFilterMonth] = useState('all');
+  const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
   const canManage = canManageEvents(userProfile);
+
+  const MONTHS = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
   
   // Action menu state
   const [activeMenuId, setActiveMenuId] = useState(null);
@@ -114,6 +122,16 @@ export default function EventsList() {
     return dateObj.toLocaleDateString(undefined, options);
   };
 
+  const filteredEvents = events.filter(event => {
+    if (!event.date) return false;
+    const [y, m] = event.date.split('-');
+    
+    const yearMatch = filterYear === 'all' || y === filterYear;
+    const monthMatch = filterMonth === 'all' || parseInt(m, 10) - 1 === parseInt(filterMonth, 10);
+    
+    return yearMatch && monthMatch;
+  });
+
   return (
     <div className="space-y-6 flex flex-col h-full">
       <div className="flex justify-between items-center">
@@ -169,19 +187,46 @@ export default function EventsList() {
           </div>
         )}
       </div>
+
+      <div className="bg-white p-4 rounded-2xl shadow-church-soft border border-gray-100 flex flex-wrap gap-4 items-end z-10 relative">
+        <div className="w-48">
+          <label className="block text-sm font-medium text-church-navy mb-1">Month</label>
+          <ModernDropdown
+            value={filterMonth}
+            onChange={setFilterMonth}
+            options={[
+              { value: 'all', label: 'All Months' },
+              ...MONTHS.map((m, i) => ({ value: String(i), label: m }))
+            ]}
+          />
+        </div>
+        <div className="w-32">
+          <label className="block text-sm font-medium text-church-navy mb-1">Year</label>
+          <ModernDropdown
+            value={filterYear}
+            onChange={setFilterYear}
+            options={[
+              { value: 'all', label: 'All Years' },
+              { value: String(new Date().getFullYear() - 1), label: String(new Date().getFullYear() - 1) },
+              { value: String(new Date().getFullYear()), label: String(new Date().getFullYear()) },
+              { value: String(new Date().getFullYear() + 1), label: String(new Date().getFullYear() + 1) }
+            ]}
+          />
+        </div>
+      </div>
       
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
           <p className="text-church-slate">Loading events...</p>
         </div>
-      ) : events.length === 0 ? (
+      ) : filteredEvents.length === 0 ? (
         <div className="bg-white rounded-3xl shadow-church-soft border border-gray-100 p-12 flex flex-col items-center justify-center flex-1">
           <div className="w-20 h-20 bg-church-green/10 rounded-full flex items-center justify-center mb-6">
             <CalendarIcon size={32} className="text-church-green" />
           </div>
-          <h3 className="text-xl font-bold text-church-navy mb-2">No upcoming events</h3>
-          <p className="text-church-slate text-center max-w-sm mb-6">Schedule your next church event, meeting, or service here.</p>
-          {canManage && (
+          <h3 className="text-xl font-bold text-church-navy mb-2">No events found</h3>
+          <p className="text-church-slate text-center max-w-sm mb-6">No events match the selected filters or schedule.</p>
+          {canManage && filterMonth === 'all' && filterYear === 'all' && (
             <button 
               onClick={handleAddClick}
               className="px-6 py-3 bg-white border border-gray-300 text-church-navy rounded-full text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm"
@@ -192,7 +237,7 @@ export default function EventsList() {
         </div>
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          {events.map(event => (
+          {filteredEvents.map(event => (
             <div 
               key={event.id} 
               onClick={(e) => isSelectionMode ? toggleEventSelect(e, event.id) : navigate(`/admin/events/${event.id}`)}
