@@ -13,14 +13,19 @@ export default function GivingFormModal({ isOpen, onClose, record = null }) {
     donorName: '',
     amount: '',
     date: '',
-    fundType: 'Tithe',
+    transactionDate: '',
+    fundId: '',
+    fundType: '',
     method: 'Cash',
+    campaignId: '',
     notes: '',
     proofUrl: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [members, setMembers] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
+  const [funds, setFunds] = useState([]);
 
   useEffect(() => {
     if (record) {
@@ -28,8 +33,11 @@ export default function GivingFormModal({ isOpen, onClose, record = null }) {
         donorName: record.donorName || '',
         amount: record.amount ? record.amount.toString() : '',
         date: record.date || '',
+        transactionDate: record.transactionDate || record.date || '',
+        fundId: record.fundId || '',
         fundType: record.fundType || 'Tithe',
         method: record.method || 'Cash',
+        campaignId: record.campaignId || '',
         notes: record.notes || '',
         proofUrl: record.proofUrl || ''
       });
@@ -39,8 +47,11 @@ export default function GivingFormModal({ isOpen, onClose, record = null }) {
         donorName: '',
         amount: '',
         date: today,
-        fundType: 'Tithe',
+        transactionDate: today,
+        fundId: '',
+        fundType: '',
         method: 'Cash',
+        campaignId: '',
         notes: '',
         proofUrl: ''
       });
@@ -64,7 +75,44 @@ export default function GivingFormModal({ isOpen, onClose, record = null }) {
           console.error("Failed to fetch members for dropdown", e);
         }
       };
+      
+      const fetchCampaigns = async () => {
+        try {
+          if (!CHURCH_ID) return;
+          const q = query(collection(db, 'givingCampaigns'), where('churchId', '==', CHURCH_ID));
+          const snap = await getDocs(q);
+          const activeCampaigns = snap.docs
+            .map(d => ({ id: d.id, ...d.data() }))
+            .filter(c => c.status === 'active')
+            .sort((a, b) => a.title.localeCompare(b.title));
+          setCampaigns(activeCampaigns);
+        } catch (e) {
+          console.error("Failed to fetch campaigns for dropdown", e);
+        }
+      };
+
+      const fetchFunds = async () => {
+        try {
+          if (!CHURCH_ID) return;
+          const q = query(collection(db, 'givingFunds'), where('churchId', '==', CHURCH_ID), where('status', '==', 'active'));
+          const snap = await getDocs(q);
+          const activeFunds = snap.docs
+            .map(d => ({ id: d.id, ...d.data() }))
+            .filter(f => f.allowGiving !== false)
+            .sort((a, b) => a.name.localeCompare(b.name));
+          setFunds(activeFunds);
+          
+          if (!record && activeFunds.length > 0) {
+             setFormData(prev => ({ ...prev, fundId: activeFunds[0].id, fundType: activeFunds[0].name }));
+          }
+        } catch (e) {
+          console.error("Failed to fetch funds for dropdown", e);
+        }
+      };
+      
       fetchMembers();
+      fetchCampaigns();
+      fetchFunds();
     }
   }, [record, isOpen, userProfile?.churchId]);
 
@@ -85,10 +133,25 @@ export default function GivingFormModal({ isOpen, onClose, record = null }) {
         throw new Error("Please enter a valid amount.");
       }
 
+      // Ensure fundType is set for backwards compatibility based on selected fundId
+      let finalFundType = formData.fundType;
+      if (formData.fundId) {
+        const selectedFund = funds.find(f => f.id === formData.fundId);
+        if (selectedFund) {
+          finalFundType = selectedFund.name;
+        }
+      }
+
       const payload = {
         ...formData,
+        fundType: finalFundType,
         amount: amountNum,
+        transactionDate: formData.date // Syncing transactionDate to equal the selected date in UI since we aren't changing the form to have two pickers
       };
+      // Ensure we don't save empty string as a campaign
+      if (!payload.campaignId) {
+        delete payload.campaignId;
+      }
 
       if (record) {
         await updateDoc(doc(db, 'givingRecords', record.id), {
@@ -97,6 +160,40 @@ export default function GivingFormModal({ isOpen, onClose, record = null }) {
           updatedAt: serverTimestamp(),
           updatedBy: currentUser?.uid || null
         });
+
+        // Handle Campaign Amount updates for Edits
+        const oldAmount = record.amount || 0;
+        const oldCampaignId = record.campaignId;
+        const newCampaignId = payload.campaignId;
+        
+        // If the campaign changed entirely or was removed
+        if (oldCampaignId && oldCampaignId !== newCampaignId) {
+           await updateDoc(doc(db, 'givingCampaigns', oldCampaignId), {
+              raisedAmount: (record.raisedAmount || 0) // need to use increment with negative value, let's just use increment
+           });
+           // Correctly decrementing the old campaign
+           const { increment } = await import('firebase/firestore');
+           await updateDoc(doc(db, 'givingCampaigns', oldCampaignId), {
+              raisedAmount: increment(-oldAmount)
+           });
+        }
+        
+        // If there's a new campaign, and it's the same as old, update the diff. Else, add full amount.
+        if (newCampaignId) {
+           const { increment } = await import('firebase/firestore');
+           if (newCampaignId === oldCampaignId) {
+             const diff = amountNum - oldAmount;
+             if (diff !== 0) {
+               await updateDoc(doc(db, 'givingCampaigns', newCampaignId), {
+                 raisedAmount: increment(diff)
+               });
+             }
+           } else {
+             await updateDoc(doc(db, 'givingCampaigns', newCampaignId), {
+               raisedAmount: increment(amountNum)
+             });
+           }
+        }
       } else {
         await addDoc(collection(db, 'givingRecords'), {
           ...payload,
@@ -108,6 +205,14 @@ export default function GivingFormModal({ isOpen, onClose, record = null }) {
           status: 'completed', // Add completed status for manual entries
           userId: currentUser?.uid // Required by native rules
         });
+        
+        // Handle new record campaign update
+        if (payload.campaignId) {
+          const { increment } = await import('firebase/firestore');
+          await updateDoc(doc(db, 'givingCampaigns', payload.campaignId), {
+            raisedAmount: increment(amountNum)
+          });
+        }
       }
       onClose();
     } catch (err) {
@@ -190,16 +295,9 @@ export default function GivingFormModal({ isOpen, onClose, record = null }) {
               <div>
                 <label className="block text-sm font-medium text-church-navy mb-1.5">Fund Type *</label>
                 <ModernDropdown
-                  value={formData.fundType}
-                  onChange={(val) => handleChange({ target: { name: 'fundType', value: val } })}
-                  options={[
-                    { value: 'Tithe', label: 'Tithe' },
-                    { value: 'Offering', label: 'Offering' },
-                    { value: 'Building Fund', label: 'Building Fund' },
-                    { value: 'Altar Project', label: 'Altar Project' },
-                    { value: 'Special Project', label: 'Special Project' },
-                    { value: 'Others', label: 'Others' }
-                  ]}
+                  value={formData.fundId}
+                  onChange={(val) => handleChange({ target: { name: 'fundId', value: val } })}
+                  options={funds.map(f => ({ value: f.id, label: f.name }))}
                 />
               </div>
               <div>
@@ -217,6 +315,18 @@ export default function GivingFormModal({ isOpen, onClose, record = null }) {
                   ]}
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-church-navy mb-1.5">Campaign (Optional)</label>
+              <ModernDropdown
+                value={formData.campaignId || ''}
+                onChange={(val) => handleChange({ target: { name: 'campaignId', value: val } })}
+                options={[
+                  { value: '', label: 'None' },
+                  ...campaigns.map(c => ({ value: c.id, label: c.title }))
+                ]}
+              />
             </div>
 
             <div>

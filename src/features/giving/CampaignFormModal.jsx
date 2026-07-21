@@ -17,6 +17,8 @@ export default function CampaignFormModal({ isOpen, onClose, campaign }) {
     allowPublicProgress: true,
     allowPublicExpenses: false,
     coverImageUrl: '',
+    fundId: '',
+    fundType: '',
   });
   
   const [loading, setLoading] = useState(false);
@@ -24,6 +26,7 @@ export default function CampaignFormModal({ isOpen, onClose, campaign }) {
   const [pauseReason, setPauseReason] = useState('');
   const [coverImageFile, setCoverImageFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [funds, setFunds] = useState([]);
 
   // Mode determines what we are doing: edit, activate, pause, complete, archive
   const mode = campaign?._action || (campaign ? 'edit' : 'create');
@@ -38,11 +41,34 @@ export default function CampaignFormModal({ isOpen, onClose, campaign }) {
         allowPublicProgress: campaign.allowPublicProgress ?? true,
         allowPublicExpenses: campaign.allowPublicExpenses ?? false,
         coverImageUrl: campaign.coverImageUrl || '',
+        fundId: campaign.fundId || '',
+        fundType: campaign.fundType || '',
       });
       setCoverImageFile(null);
       setUploadProgress(0);
     }
   }, [campaign]);
+
+  useEffect(() => {
+    if (isOpen) {
+      const fetchFunds = async () => {
+        try {
+          if (!CHURCH_ID) return;
+          const { query, where, getDocs } = await import('firebase/firestore');
+          const q = query(collection(db, 'givingFunds'), where('churchId', '==', CHURCH_ID), where('status', '==', 'active'));
+          const snap = await getDocs(q);
+          const activeFunds = snap.docs
+            .map(d => ({ id: d.id, ...d.data() }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+          setFunds(activeFunds);
+        } catch (e) {
+          console.error("Failed to fetch funds for dropdown", e);
+        }
+      };
+      
+      fetchFunds();
+    }
+  }, [isOpen, CHURCH_ID]);
 
   if (!isOpen) return null;
 
@@ -175,10 +201,20 @@ export default function CampaignFormModal({ isOpen, onClose, campaign }) {
         });
       }
 
+      // Map final fundType for fallback
+      let finalFundType = formData.fundType;
+      if (formData.fundId) {
+        const selectedFund = funds.find(f => f.id === formData.fundId);
+        if (selectedFund) {
+          finalFundType = selectedFund.name;
+        }
+      }
+
       if (mode === 'create') {
         const campaignRef = doc(collection(db, 'givingCampaigns'));
         await setDoc(campaignRef, {
           ...formData,
+          fundType: finalFundType,
           coverImageUrl: imageUrl,
           goalAmount: Number(formData.goalAmount),
           churchId: CHURCH_ID,
@@ -193,6 +229,7 @@ export default function CampaignFormModal({ isOpen, onClose, campaign }) {
         const campaignRef = doc(db, 'givingCampaigns', campaign.id);
         await updateDoc(campaignRef, {
           ...formData,
+          fundType: finalFundType,
           coverImageUrl: imageUrl,
           goalAmount: Number(formData.goalAmount),
           updatedBy: originalUserProfile.name || 'Unknown',
@@ -257,6 +294,8 @@ export default function CampaignFormModal({ isOpen, onClose, campaign }) {
           allowPublicProgress: formData.allowPublicProgress,
           allowPublicExpenses: formData.allowPublicExpenses,
           coverImageUrl: formData.coverImageUrl,
+          fundId: formData.fundId,
+          fundType: formData.fundId ? funds.find(f => f.id === formData.fundId)?.name || formData.fundType : formData.fundType,
         });
       }
 
@@ -532,6 +571,19 @@ export default function CampaignFormModal({ isOpen, onClose, campaign }) {
               ]}
             />
           </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-church-slate mb-1">Link to Fund (Optional)</label>
+          <ModernDropdown
+            value={formData.fundId}
+            onChange={(val) => handleChange({ target: { name: 'fundId', value: val } })}
+            options={[
+              { value: '', label: '-- None --' },
+              ...funds.map(f => ({ value: f.id, label: f.name }))
+            ]}
+          />
+          <p className="text-xs text-church-slate mt-1">If linked, funds raised will also report under this fund.</p>
         </div>
 
         <div className="flex justify-end space-x-3 pt-6 border-t border-gray-100">

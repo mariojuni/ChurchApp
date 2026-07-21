@@ -12,13 +12,11 @@ import MembersList from './features/members/MembersList';
 import MinistriesList from './features/ministries/MinistriesList';
 import EventsList from './features/events/EventsList';
 import EventDetails from './features/events/EventDetails';
-import GivingRecords from './features/giving/GivingRecords';
-import GivingCampaigns from './features/giving/GivingCampaigns';
 import SermonsList from './features/sermons/SermonsList';
 import BiblePlans from './features/bible/BiblePlans';
 import PrayerModeration from './features/prayer/PrayerModeration';
-import ExpensesList from './features/expenses/ExpensesList';
 import SettingsLayout from './features/settings/SettingsLayout';
+import FinanceLayout from './features/finance/FinanceLayout';
 import SettingsProfile from './features/settings/SettingsProfile';
 import SettingsUsersAndRoles from './features/settings/SettingsUsersAndRoles';
 import MinistryDetails from './features/ministries/MinistryDetails';
@@ -146,28 +144,20 @@ function AppRoutes() {
           />
           
           <Route 
-            path="giving" 
-            element={
-              <RoleGuard allowedRoles={['super_admin', 'church_admin', 'finance_admin']}>
-                <GivingRecords />
-              </RoleGuard>
-            } 
+            path="giving/*" 
+            element={<Navigate to="/admin/finance/giving" replace />} 
           />
           
           <Route 
-            path="giving/campaigns" 
-            element={
-              <RoleGuard allowedRoles={['super_admin', 'church_admin', 'finance_admin']}>
-                <GivingCampaigns />
-              </RoleGuard>
-            } 
+            path="expenses/*" 
+            element={<Navigate to="/admin/finance/expenses" replace />} 
           />
           
           <Route 
-            path="expenses" 
+            path="finance/*" 
             element={
-              <RoleGuard allowedRoles={['super_admin', 'church_admin', 'finance_admin']}>
-                <ExpensesList />
+              <RoleGuard allowedRoles={['super_admin', 'church_admin', 'finance_admin', 'pastor']}>
+                <FinanceLayout />
               </RoleGuard>
             } 
           />

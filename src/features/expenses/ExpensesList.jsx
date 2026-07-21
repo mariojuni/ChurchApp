@@ -13,6 +13,9 @@ export default function ExpensesList() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
+  const [fundsMap, setFundsMap] = useState({});
+  const [fundsList, setFundsList] = useState([]);
+  const [selectedFundId, setSelectedFundId] = useState('all');
 
   useEffect(() => {
     if (!CHURCH_ID) return;
@@ -33,7 +36,36 @@ export default function ExpensesList() {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    const fetchFunds = async () => {
+      try {
+        const qFunds = query(collection(db, 'givingFunds'), where('churchId', '==', CHURCH_ID));
+        const unsubscribeFunds = onSnapshot(qFunds, (snap) => {
+          const map = {};
+          const list = [];
+          snap.forEach(d => {
+            const data = d.data();
+            map[d.id] = data.name;
+            if (data.status === 'active' && data.allowExpenses !== false) {
+              list.push({ id: d.id, name: data.name });
+            }
+          });
+          list.sort((a, b) => a.name.localeCompare(b.name));
+          setFundsMap(map);
+          setFundsList(list);
+        });
+        return unsubscribeFunds;
+      } catch (err) {
+        console.error("Error fetching funds:", err);
+      }
+    };
+    
+    let unsubscribeFunds;
+    fetchFunds().then(unsub => unsubscribeFunds = unsub);
+
+    return () => {
+      unsubscribe();
+      if (unsubscribeFunds) unsubscribeFunds();
+    };
   }, [CHURCH_ID]);
 
   const handleAddClick = () => {
@@ -64,7 +96,23 @@ export default function ExpensesList() {
     return dateObj.toLocaleDateString(undefined, options);
   };
 
-  const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+  const mapFundIdToName = (fundId, fundType) => {
+    if (fundId && fundsMap[fundId]) return fundsMap[fundId];
+    if (fundType) return fundType;
+    return 'General'; // Default legacy fallback
+  };
+
+  const filteredExpenses = expenses.filter(r => {
+    if (selectedFundId !== 'all' && r.fundId !== selectedFundId) {
+       const selectedFundName = fundsMap[selectedFundId] || '';
+       if (r.fundType !== selectedFundName && r.fundId !== selectedFundId) {
+          return false;
+       }
+    }
+    return true;
+  });
+
+  const totalExpenses = filteredExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
 
   return (
     <div className="space-y-6 flex flex-col h-full">
@@ -82,21 +130,20 @@ export default function ExpensesList() {
         </button>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-3xl p-6 shadow-church-soft border border-gray-100 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-church-slate mb-1">Total Expenses Recorded</p>
-            <h3 className="text-3xl font-bold text-red-600">
-              ₱{totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </h3>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center text-red-600">
-            <TrendingDown size={24} />
-          </div>
-        </div>
+      <div className="flex flex-col md:flex-row md:items-center justify-between bg-white p-4 rounded-3xl shadow-church-soft border border-gray-100 space-y-4 md:space-y-0">
+         <select 
+            value={selectedFundId} 
+            onChange={(e) => setSelectedFundId(e.target.value)}
+            className="w-full sm:w-64 px-4 py-2 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent text-sm bg-white"
+          >
+            <option value="all">All Funds</option>
+            {fundsList.map(f => (
+              <option key={f.id} value={f.id}>{f.name}</option>
+            ))}
+          </select>
       </div>
-      
+
+
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
           <p className="text-church-slate">Loading expenses...</p>
@@ -124,13 +171,14 @@ export default function ExpensesList() {
                   <th className="py-4 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
                   <th className="py-4 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider">Payee</th>
                   <th className="py-4 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider">Category</th>
+                  <th className="py-4 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider">Fund</th>
                   <th className="py-4 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Amount</th>
                   <th className="py-4 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Receipt</th>
                   <th className="py-4 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {expenses.map((expense) => (
+                {filteredExpenses.map((expense) => (
                   <tr key={expense.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="py-4 px-6 text-sm text-church-slate whitespace-nowrap">
                       {formatDate(expense.date)}
@@ -144,6 +192,11 @@ export default function ExpensesList() {
                     <td className="py-4 px-6">
                       <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-800">
                         {expense.category}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-800">
+                        {mapFundIdToName(expense.fundId, expense.fundType)}
                       </span>
                     </td>
                     <td className="py-4 px-6 text-sm font-bold text-red-600 text-right whitespace-nowrap">

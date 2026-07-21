@@ -14,6 +14,7 @@ export default function GivingCampaigns() {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState(null);
+  const [fundsMap, setFundsMap] = useState({});
 
   useEffect(() => {
     if (!CHURCH_ID) return;
@@ -28,10 +29,33 @@ export default function GivingCampaigns() {
       }));
       docs.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
       setCampaigns(docs);
+      setCampaigns(docs);
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    const fetchFunds = async () => {
+      try {
+        const qFunds = query(collection(db, 'givingFunds'), where('churchId', '==', CHURCH_ID));
+        const unsubscribeFunds = onSnapshot(qFunds, (snap) => {
+          const map = {};
+          snap.forEach(d => {
+            map[d.id] = d.data().name;
+          });
+          setFundsMap(map);
+        });
+        return unsubscribeFunds;
+      } catch (err) {
+        console.error("Error fetching funds:", err);
+      }
+    };
+    
+    let unsubscribeFunds;
+    fetchFunds().then(unsub => unsubscribeFunds = unsub);
+
+    return () => {
+      unsubscribe();
+      if (unsubscribeFunds) unsubscribeFunds();
+    };
   }, [CHURCH_ID]);
 
   const handleAddClick = () => {
@@ -78,6 +102,12 @@ export default function GivingCampaigns() {
   const handleUpdateStatus = (campaign, action) => {
     setEditingCampaign({ ...campaign, _action: action });
     setIsModalOpen(true);
+  };
+
+  const getFundName = (fundId, fundType) => {
+    if (fundId && fundsMap[fundId]) return fundsMap[fundId];
+    if (fundType) return fundType;
+    return 'None';
   };
 
   return (
@@ -150,6 +180,11 @@ export default function GivingCampaigns() {
                       <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700">
                         {campaign.campaignType?.replace('_', ' ')}
                       </span>
+                      {campaign.fundId && (
+                        <div className="mt-2 text-xs text-church-slate flex items-center">
+                          <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full font-medium">Fund: {getFundName(campaign.fundId, campaign.fundType)}</span>
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getStatusBadge(campaign.status)}

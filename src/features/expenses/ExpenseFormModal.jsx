@@ -26,12 +26,15 @@ export default function ExpenseFormModal({ isOpen, onClose, expense = null }) {
     payee: '',
     category: 'Utilities',
     description: '',
+    fundId: '',
+    fundType: '',
   });
   
   const [receiptFile, setReceiptFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [funds, setFunds] = useState([]);
 
   useEffect(() => {
     if (expense) {
@@ -41,6 +44,8 @@ export default function ExpenseFormModal({ isOpen, onClose, expense = null }) {
         payee: expense.payee || '',
         category: expense.category || 'Utilities',
         description: expense.description || '',
+        fundId: expense.fundId || '',
+        fundType: expense.fundType || '',
       });
     } else {
       setFormData({
@@ -49,12 +54,39 @@ export default function ExpenseFormModal({ isOpen, onClose, expense = null }) {
         payee: '',
         category: 'Utilities',
         description: '',
+        fundId: '',
+        fundType: '',
       });
     }
     setReceiptFile(null);
     setUploadProgress(0);
     setError('');
-  }, [expense, isOpen]);
+
+    // Fetch active funds for dropdown
+    if (isOpen) {
+      const fetchFunds = async () => {
+        try {
+          if (!CHURCH_ID) return;
+          const { query, where, getDocs } = await import('firebase/firestore');
+          const q = query(collection(db, 'givingFunds'), where('churchId', '==', CHURCH_ID), where('status', '==', 'active'));
+          const snap = await getDocs(q);
+          const activeFunds = snap.docs
+            .map(d => ({ id: d.id, ...d.data() }))
+            .filter(f => f.allowExpenses !== false)
+            .sort((a, b) => a.name.localeCompare(b.name));
+          setFunds(activeFunds);
+          
+          if (!expense && activeFunds.length > 0) {
+             setFormData(prev => ({ ...prev, fundId: activeFunds[0].id, fundType: activeFunds[0].name }));
+          }
+        } catch (e) {
+          console.error("Failed to fetch funds for dropdown", e);
+        }
+      };
+      
+      fetchFunds();
+    }
+  }, [expense, isOpen, CHURCH_ID]);
 
   if (!isOpen) return null;
 
@@ -99,8 +131,18 @@ export default function ExpenseFormModal({ isOpen, onClose, expense = null }) {
         });
       }
 
+      // Map final fundType for fallback
+      let finalFundType = formData.fundType;
+      if (formData.fundId) {
+        const selectedFund = funds.find(f => f.id === formData.fundId);
+        if (selectedFund) {
+          finalFundType = selectedFund.name;
+        }
+      }
+
       const expenseDoc = {
         ...formData,
+        fundType: finalFundType,
         amount: parseFloat(formData.amount) || 0,
         receiptUrl,
         updatedAt: serverTimestamp(),
@@ -173,6 +215,17 @@ export default function ExpenseFormModal({ isOpen, onClose, expense = null }) {
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent transition-shadow" 
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-church-navy mb-1">Fund *</label>
+                <ModernDropdown
+                  value={formData.fundId}
+                  onChange={(val) => handleChange({ target: { name: 'fundId', value: val } })}
+                  options={funds.map(f => ({ value: f.id, label: f.name }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
               <div>
                 <label className="block text-sm font-medium text-church-navy mb-1">Category *</label>
                 <ModernDropdown

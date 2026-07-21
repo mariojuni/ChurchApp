@@ -14,8 +14,38 @@ export default function ReportsDashboard() {
   const [dateRange, setDateRange] = useState('This Month');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [fundsMap, setFundsMap] = useState({});
+  const [fundsList, setFundsList] = useState([]);
+  const [selectedGivingFund, setSelectedGivingFund] = useState('all');
 
   const canSeeGiving = canManageGiving(userProfile);
+
+  useEffect(() => {
+    if (!CHURCH_ID) return;
+    const fetchFunds = async () => {
+      try {
+        const { query, onSnapshot, where, collection } = await import('firebase/firestore');
+        const qFunds = query(collection(db, 'givingFunds'), where('churchId', '==', CHURCH_ID));
+        onSnapshot(qFunds, (snap) => {
+          const map = {};
+          const list = [];
+          snap.forEach(d => {
+            const data = d.data();
+            map[d.id] = data.name;
+            if (data.status === 'active') {
+              list.push({ id: d.id, name: data.name });
+            }
+          });
+          list.sort((a, b) => a.name.localeCompare(b.name));
+          setFundsMap(map);
+          setFundsList(list);
+        });
+      } catch (err) {
+        console.error("Error fetching funds:", err);
+      }
+    };
+    fetchFunds();
+  }, [CHURCH_ID]);
 
   const handleExportCSV = async (reportType) => {
     setLoading(true);
@@ -38,10 +68,20 @@ export default function ReportsDashboard() {
         let data = snap.docs.map(d => d.data()).filter(d => d.churchId === CHURCH_ID || (!d.churchId && CHURCH_ID === 'YmEc6C69Xz4DKRQaQZBV'));
         
         data.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)); // Descending by date
+
+        if (selectedGivingFund !== 'all') {
+          data = data.filter(r => {
+             if (r.fundId === selectedGivingFund) return true;
+             const fundName = fundsMap[selectedGivingFund];
+             if (r.fundType === fundName && !r.fundId) return true;
+             return false;
+          });
+        }
         
         csvContent = "Date,Donor,Type,Method,Amount\n";
         data.forEach(g => {
-          csvContent += `"${g.date}","${g.donorName || 'Anonymous'}","${g.fundType}","${g.method}","${g.amount}"\n`;
+          const fundName = g.fundId && fundsMap[g.fundId] ? fundsMap[g.fundId] : (g.fundType || 'Tithe');
+          csvContent += `"${g.date}","${g.donorName || 'Anonymous'}","${fundName}","${g.method || g.paymentMethod || 'Cash'}","${g.amount}"\n`;
         });
       }
       else if (reportType === 'attendance') {
@@ -169,6 +209,17 @@ export default function ReportsDashboard() {
                 <h3 className="font-bold text-church-navy">Financial Giving</h3>
                 <p className="text-xs text-church-slate">Tithes, offerings & funds</p>
               </div>
+            </div>
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-church-slate uppercase mb-1">Filter by Fund</label>
+              <ModernDropdown
+                value={selectedGivingFund}
+                onChange={(val) => setSelectedGivingFund(val)}
+                options={[
+                  { value: 'all', label: 'All Funds' },
+                  ...fundsList.map(f => ({ value: f.id, label: f.name }))
+                ]}
+              />
             </div>
             <button 
               onClick={() => handleExportCSV('giving')}
