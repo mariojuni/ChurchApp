@@ -225,7 +225,7 @@ export default function Login() {
               <div className="mb-8">
                 <h2 className="text-2xl font-bold text-church-navy tracking-tight">Welcome back</h2>
                 <p className="text-church-slate text-sm mt-1 leading-relaxed">
-                  Sign in to manage your church app and ministry operations.
+                  Sign in to manage your Coram Deo operations.
                 </p>
               </div>
 

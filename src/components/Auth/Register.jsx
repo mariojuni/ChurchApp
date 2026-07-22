@@ -74,7 +74,7 @@ export default function Register() {
       <div className="auth-card">
         <div className="auth-header">
           <h2>Create Account</h2>
-          <p>Join the Church App community</p>
+          <p>Join the Coram Deo community</p>
         </div>
 
         {error && (
