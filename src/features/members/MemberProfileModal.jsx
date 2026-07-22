@@ -4,7 +4,7 @@ import { collection, collectionGroup, query, where, getDocs, orderBy } from 'fir
 import { db } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
 import { logRoleChange } from '../../utils/roleAudit';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import {
   canManageGiving,
   canManageRoles,
@@ -25,6 +25,9 @@ export default function MemberProfileModal({ isOpen, onClose, member = null }) {
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [loadingAttendance, setLoadingAttendance] = useState(false);
 
+  const [memberMinistries, setMemberMinistries] = useState([]);
+  const [loadingMinistries, setLoadingMinistries] = useState(false);
+
   const [newRoles, setNewRoles] = useState([]);
   const [reason, setReason] = useState('');
   const [savingRole, setSavingRole] = useState(false);
@@ -41,6 +44,7 @@ export default function MemberProfileModal({ isOpen, onClose, member = null }) {
       }
       if (member.id) {
         fetchAttendanceHistory(member.id);
+        fetchMinistries(member.id);
       }
     }
   }, [isOpen, member, userProfile]);
@@ -65,23 +69,78 @@ export default function MemberProfileModal({ isOpen, onClose, member = null }) {
     }
   };
 
+  const fetchMinistries = async (memberId) => {
+    setLoadingMinistries(true);
+    const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
+    try {
+      const q = query(
+        collection(db, 'ministries'),
+        where('churchId', '==', CHURCH_ID)
+      );
+      const snap = await getDocs(q);
+      const allDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      
+      const memberMinistriesList = allDocs.filter(ministry => {
+        // Check if member is in memberIds array (strings)
+        if (ministry.memberIds && ministry.memberIds.includes(memberId)) return true;
+        // Check if member is in members array (objects)
+        if (ministry.members && Array.isArray(ministry.members)) {
+          return ministry.members.some(m => m.memberId === memberId);
+        }
+        return false;
+      });
+      
+      setMemberMinistries(memberMinistriesList);
+    } catch (e) {
+      console.error("Error fetching ministries:", e);
+    } finally {
+      setLoadingMinistries(false);
+    }
+  };
+
   const fetchAttendanceHistory = async (memberId) => {
     setLoadingAttendance(true);
     const CHURCH_ID = userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV';
     try {
-      // Query attendance collection directly
-      const q = query(
-        collection(db, 'attendance'), 
-        where('churchId', '==', CHURCH_ID),
-        where('userId', '==', memberId)
-      );
-      const snap = await getDocs(q);
-      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      // Sort by timestamp descending
-      docs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-      setAttendanceHistory(docs);
+      const allSessions = [];
+      
+      // Try plural
+      try {
+        const sessionsQuery = query(collection(db, 'attendance_sessions'));
+        const sessionsSnap = await getDocs(sessionsQuery);
+        sessionsSnap.docs.forEach(d => allSessions.push({ id: d.id, collectionName: 'attendance_sessions' }));
+      } catch (e) { console.warn(e); }
+
+      // Try singular
+      try {
+        const sessionQuerySingular = query(collection(db, 'attendance_session'));
+        const sessionSnapSingular = await getDocs(sessionQuerySingular);
+        sessionSnapSingular.docs.forEach(d => allSessions.push({ id: d.id, collectionName: 'attendance_session' }));
+      } catch (e) { console.warn(e); }
+      
+      const recordPromises = allSessions.map(async (sessionDoc) => {
+        const eventId = sessionDoc.id;
+        const recordRef = doc(db, sessionDoc.collectionName, eventId, 'records', memberId);
+        const recordSnap = await getDoc(recordRef);
+        if (recordSnap.exists()) {
+          return { id: recordSnap.id, ...recordSnap.data() };
+        }
+        return null;
+      });
+
+      const results = await Promise.all(recordPromises);
+      const validRecords = results.filter(r => r !== null);
+      
+      // Sort by checkedInAt or timestamp descending
+      validRecords.sort((a, b) => {
+        const dateA = a.checkedInAt ? new Date(a.checkedInAt) : new Date(a.timestamp || 0);
+        const dateB = b.checkedInAt ? new Date(b.checkedInAt) : new Date(b.timestamp || 0);
+        return dateB - dateA;
+      });
+      
+      setAttendanceHistory(validRecords);
     } catch (e) {
-      console.error("Error fetching attendance, you may need to build an index:", e);
+      console.error("Error fetching attendance:", e);
     } finally {
       setLoadingAttendance(false);
     }
@@ -402,9 +461,29 @@ export default function MemberProfileModal({ isOpen, onClose, member = null }) {
                 {member.name} is part of the <strong>{member.familyGroup || 'General'}</strong> family group.
               </p>
               
-              {/* Future Expansion: Query `ministries` collection where members array includes this member's ID */}
-              <div className="mt-8 p-6 bg-gray-50 rounded-xl border border-gray-100">
-                <p className="text-sm text-gray-500 italic">Ministry assignments are managed globally from the Ministries module. Syncing specific ministry assignments to the profile view is coming soon.</p>
+              {/* Ministry Assignments */}
+              <div className="mt-8">
+                {loadingMinistries ? (
+                  <div className="p-6 text-center text-gray-500">Loading ministries...</div>
+                ) : memberMinistries.length === 0 ? (
+                  <div className="p-6 bg-gray-50 rounded-xl border border-gray-100">
+                    <p className="text-sm text-gray-500 italic">No ministry assignments found for this member.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+                    {memberMinistries.map(ministry => (
+                      <div key={ministry.id} className="p-4 border border-gray-100 rounded-xl bg-white shadow-sm flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center">
+                          <HeartHandshake size={18} />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-church-navy">{ministry.name}</h4>
+                          <p className="text-xs text-gray-500">{ministry.roles?.length || 0} Roles Available</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -425,6 +504,7 @@ export default function MemberProfileModal({ isOpen, onClose, member = null }) {
                 <table className="w-full text-left">
                   <thead>
                     <tr className="bg-white border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase">
+                      <th className="px-6 py-3">Event</th>
                       <th className="px-6 py-3">Date</th>
                       <th className="px-6 py-3">Status</th>
                     </tr>
@@ -432,7 +512,10 @@ export default function MemberProfileModal({ isOpen, onClose, member = null }) {
                   <tbody className="divide-y divide-gray-50">
                     {attendanceHistory.map(record => (
                       <tr key={record.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-sm text-church-slate">{new Date(record.timestamp).toLocaleDateString()}</td>
+                        <td className="px-6 py-4 text-sm text-church-slate">{record.eventTitle || 'Unknown Event'}</td>
+                        <td className="px-6 py-4 text-sm text-church-slate">
+                          {record.checkedInAt ? new Date(record.checkedInAt).toLocaleDateString() : (record.timestamp ? new Date(record.timestamp).toLocaleDateString() : '')}
+                        </td>
                         <td className="px-6 py-4 text-sm font-medium">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
                             record.status === 'Present' ? 'bg-green-100 text-green-700' : 
