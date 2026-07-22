@@ -5,6 +5,20 @@ import { useAuth } from '../../context/AuthContext';
 import { Plus, CreditCard, Edit, Trash2, Search, ExternalLink } from 'lucide-react';
 import GivingFormModal from './GivingFormModal';
 import DateRangeFilter from '../../components/ui/DateRangeFilter';
+import ModernDropdown from '../../components/ui/ModernDropdown';
+
+const normalizeMethod = (m) => {
+  if (!m) return 'Cash';
+  const raw = String(m).trim();
+  const lower = raw.toLowerCase().replace(/_/g, ' ');
+  if (lower === 'cash') return 'Cash';
+  if (lower === 'gcash') return 'GCash';
+  if (lower === 'maya') return 'Maya';
+  if (lower === 'bank transfer' || lower === 'bank') return 'Bank Transfer';
+  if (lower === 'check') return 'Check';
+  if (lower === 'online payment' || lower === 'online') return 'Online Payment';
+  return raw.split(/[\s_]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+};
 
 export default function GivingRecords() {
   const { userProfile } = useAuth();
@@ -81,7 +95,16 @@ export default function GivingRecords() {
         const unsubscribeUsers = onSnapshot(qUsers, (snap) => {
           const map = {};
           snap.forEach(d => {
-            map[d.id] = d.data().name || 'Anonymous';
+            const u = d.data();
+            let name = '';
+            if (u.firstName || u.lastName) {
+              const f = (u.firstName || '').trim().split(/[\s-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+              const l = (u.lastName || '').trim().split(/[\s-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+              const m = u.middleName ? u.middleName.trim().charAt(0).toUpperCase() + '.' : '';
+              name = [f, m, l].filter(Boolean).join(' ');
+            }
+            if (!name) name = u.name || u.displayName;
+            map[d.id] = name || 'Anonymous';
           });
           setUsersMap(map);
         });
@@ -253,16 +276,15 @@ export default function GivingRecords() {
       <div className="flex flex-col md:flex-row md:items-center justify-between bg-white p-4 rounded-3xl shadow-church-soft border border-gray-100 space-y-4 md:space-y-0">
         <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4">
           <DateRangeFilter onChange={setDateFilter} defaultFilter="thisMonth" />
-          <select 
+          <ModernDropdown 
             value={selectedFundId} 
-            onChange={(e) => setSelectedFundId(e.target.value)}
-            className="w-full sm:w-auto px-4 py-2 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent text-sm bg-white"
-          >
-            <option value="all">All Funds</option>
-            {fundsList.map(f => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </select>
+            onChange={(val) => setSelectedFundId(val)}
+            options={[
+              { value: 'all', label: 'All Funds' },
+              ...fundsList.map(f => ({ value: f.id, label: f.name }))
+            ]}
+            className="w-full sm:w-52"
+          />
         </div>
         <div className="relative w-full md:w-72">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -315,9 +337,9 @@ export default function GivingRecords() {
               ) : (
                 filteredLedgerRecords.map((record) => {
                   const date = record.transactionDate || record.date || (record.submittedAt ? new Date(record.submittedAt.seconds * 1000).toISOString().split('T')[0] : '');
-                  const donorName = record.donorName || usersMap[record.userId] || 'Anonymous';
+                  const donorName = usersMap[record.userId] || record.donorName || 'Anonymous';
                   const fundType = mapFundIdToName(record.fundId, record.fundType);
-                  const method = record.method || record.paymentMethod || 'Cash';
+                  const method = normalizeMethod(record.method || record.paymentMethod || 'Cash');
                   const proofUrl = record.proofUrl || record.proofOfPaymentUrl || '';
 
                   return (

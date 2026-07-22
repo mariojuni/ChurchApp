@@ -4,6 +4,7 @@ import { db } from '../../firebase';
 import { Plus, Receipt, Edit, Trash2, ArrowUpRight, TrendingDown } from 'lucide-react';
 import ExpenseFormModal from './ExpenseFormModal';
 import { useAuth } from '../../context/AuthContext';
+import ModernDropdown from '../../components/ui/ModernDropdown';
 
 export default function ExpensesList() {
   const { userProfile } = useAuth();
@@ -131,16 +132,15 @@ export default function ExpensesList() {
       </div>
 
       <div className="flex flex-col md:flex-row md:items-center justify-between bg-white p-4 rounded-3xl shadow-church-soft border border-gray-100 space-y-4 md:space-y-0">
-         <select 
+         <ModernDropdown 
             value={selectedFundId} 
-            onChange={(e) => setSelectedFundId(e.target.value)}
-            className="w-full sm:w-64 px-4 py-2 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-church-green focus:border-transparent text-sm bg-white"
-          >
-            <option value="all">All Funds</option>
-            {fundsList.map(f => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </select>
+            onChange={(val) => setSelectedFundId(val)}
+            options={[
+              { value: 'all', label: 'All Funds' },
+              ...fundsList.map(f => ({ value: f.id, label: f.name }))
+            ]}
+            className="w-full sm:w-56"
+         />
       </div>
 
 

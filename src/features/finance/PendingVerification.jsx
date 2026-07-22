@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, onSnapshot, doc, updateDoc, increment, where } from 'firebase/firestore';
+import { collection, query, onSnapshot, doc, updateDoc, increment, where, serverTimestamp } from 'firebase/firestore';
 import { ref, deleteObject } from 'firebase/storage';
 import { db, storage } from '../../firebase';
 import { useAuth } from '../../context/AuthContext';
@@ -13,6 +13,7 @@ export default function PendingVerification() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [usersMap, setUsersMap] = useState({});
+  const [fundsMap, setFundsMap] = useState({});
 
   useEffect(() => {
     if (!CHURCH_ID) return;
@@ -46,18 +47,43 @@ export default function PendingVerification() {
     const unsubscribeUsers = onSnapshot(qUsers, (snap) => {
       const map = {};
       snap.forEach(d => {
-        map[d.id] = d.data().name || 'Anonymous';
+        const u = d.data();
+        let name = '';
+        if (u.firstName || u.lastName) {
+          const f = (u.firstName || '').trim().split(/[\s-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+          const l = (u.lastName || '').trim().split(/[\s-]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+          const m = u.middleName ? u.middleName.trim().charAt(0).toUpperCase() + '.' : '';
+          name = [f, m, l].filter(Boolean).join(' ');
+        }
+        if (!name) name = u.name || u.displayName;
+        map[d.id] = name || 'Anonymous';
       });
       setUsersMap(map);
+    });
+
+    const qFunds = query(collection(db, 'givingFunds'), where('churchId', '==', CHURCH_ID));
+    const unsubscribeFunds = onSnapshot(qFunds, (snap) => {
+      const map = {};
+      snap.forEach(d => {
+        map[d.id] = d.data().name;
+      });
+      setFundsMap(map);
     });
 
     return () => {
       unsubscribe();
       unsubscribeUsers();
+      unsubscribeFunds();
     };
   }, [userProfile?.churchId]);
 
-  const mapFundIdToName = (fundId) => {
+  const getDonorName = (record) => {
+    return usersMap[record.userId] || record.donorName || record.userName || 'Anonymous';
+  };
+
+  const mapFundIdToName = (fundId, fundType) => {
+    if (fundId && fundsMap[fundId]) return fundsMap[fundId];
+    if (fundType) return fundType;
     if (!fundId) return 'Tithe';
     const lower = fundId.toLowerCase();
     if (lower.includes('tithe')) return 'Tithe';
@@ -74,19 +100,14 @@ export default function PendingVerification() {
       const recordRef = doc(db, 'givingRecords', record.id);
       const submittedDate = record.submittedAt?.toDate() || new Date();
       const dateString = submittedDate.toISOString().split('T')[0];
-      const donorName = usersMap[record.userId] || 'Anonymous';
 
       await updateDoc(recordRef, {
         status: 'completed',
-        approvedAt: new Date(),
+        approvedAt: serverTimestamp(),
         approvedBy: currentUser.uid,
-        donorName: donorName,
         date: dateString,
-        transactionDate: dateString,
-        fundType: mapFundIdToName(record.fundId),
-        method: record.paymentMethod || 'Cash',
-        notes: record.note || '',
-        proofUrl: record.proofOfPaymentUrl || ''
+        fundType: mapFundIdToName(record.fundId, record.fundType),
+        updatedAt: serverTimestamp()
       });
       
       if (record.campaignId) {
@@ -113,8 +134,9 @@ export default function PendingVerification() {
       await updateDoc(doc(db, 'givingRecords', record.id), {
         status: 'rejected',
         rejectionReason: reason || 'Declined by admin',
-        reviewedBy: currentUser.uid,
-        reviewedAt: new Date()
+        rejectedBy: currentUser.uid,
+        rejectedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       });
 
       if (record.proofOfPaymentUrl) {
@@ -138,8 +160,8 @@ export default function PendingVerification() {
   const filteredRecords = pendingRecords.filter(r => {
     if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
-    const donorName = (usersMap[r.userId] || 'Anonymous').toLowerCase();
-    const fundMatch = mapFundIdToName(r.fundId).toLowerCase().includes(search);
+    const donorName = getDonorName(r).toLowerCase();
+    const fundMatch = mapFundIdToName(r.fundId, r.fundType).toLowerCase().includes(search);
     return donorName.includes(search) || fundMatch;
   });
 
@@ -187,6 +209,7 @@ export default function PendingVerification() {
             ) : (
               filteredRecords.map((record) => {
                 const submittedDate = record.submittedAt?.toDate ? record.submittedAt.toDate() : new Date();
+                const donorName = getDonorName(record);
                 return (
                   <tr key={record.id} className="hover:bg-gray-50 transition-colors group">
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -200,10 +223,10 @@ export default function PendingVerification() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold mr-3">
-                          {(usersMap[record.userId] || 'A').charAt(0).toUpperCase()}
+                          {donorName.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <p className="text-sm font-bold text-church-navy">{usersMap[record.userId] || 'Anonymous'}</p>
+                          <p className="text-sm font-bold text-church-navy">{donorName}</p>
                           <p className="text-xs text-gray-500">App Submission</p>
                         </div>
                       </div>
@@ -211,7 +234,7 @@ export default function PendingVerification() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <span className="px-2.5 py-1 bg-purple-100 text-purple-700 text-xs font-bold rounded-lg mr-2">
-                          {mapFundIdToName(record.fundId)}
+                          {mapFundIdToName(record.fundId, record.fundType)}
                         </span>
                         {record.campaignId && (
                           <span className="px-2.5 py-1 bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg">
