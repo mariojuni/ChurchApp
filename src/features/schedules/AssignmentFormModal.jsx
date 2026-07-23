@@ -246,13 +246,28 @@ export default function AssignmentFormModal({ isOpen, onClose, existingAssignmen
               
               <div>
                 <label className="block text-sm font-bold text-church-navy mb-1">Search & Select Member *</label>
-                <ModernDropdown 
-                  value={selectedMember}
-                  onChange={(val) => setSelectedMember(val)}
-                  options={allMembers.map(m => ({ value: m.id, label: m.displayName || m.name || 'Unknown' }))}
-                  placeholder="-- Select Member --"
-                  searchable={true}
-                />
+                {(() => {
+                  const ministryMemberIds = (activeMinistry?.members || []).map(m => m.memberId);
+                  const membersToDisplay = allMembers.filter(m => ministryMemberIds.includes(m.id));
+                  
+                  if ((activeMinistry?.members || []).length === 0) {
+                    return (
+                      <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-sm font-medium">
+                        No members assigned to this ministry yet. Please add members to {activeMinistry?.name || 'this ministry'} in Team Roster first.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <ModernDropdown 
+                      value={selectedMember}
+                      onChange={(val) => setSelectedMember(val)}
+                      options={membersToDisplay.map(m => ({ value: m.id, label: m.displayName || m.name || 'Unknown' }))}
+                      placeholder="-- Select Member --"
+                      searchable={true}
+                    />
+                  );
+                })()}
               </div>
             </>
           )}

@@ -244,23 +244,24 @@ export default function MinistryDetails() {
                   <p className="text-church-slate text-sm">Assign someone to this ministry to start building your team.</p>
                 </div>
               ) : (
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-white border-b border-gray-100 text-xs font-bold text-church-slate uppercase tracking-wider">
-                      <th className="p-4 pl-6">Member Name</th>
-                      <th className="p-4 text-right pr-6">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {members.map(member => (
-                      <tr key={member.memberId} className="hover:bg-gray-50/50 group">
-                        <td className="p-4 pl-6">
-                          <div className="flex items-center">
-                            <div className="w-8 h-8 rounded-full bg-church-green/10 flex items-center justify-center text-church-green font-bold text-sm uppercase shrink-0">
-                              {member.memberName?.charAt(0) || 'U'}
-                            </div>
-                            <div className="ml-3">
-                              <span className="font-bold text-church-navy">{member.memberName}</span>
+                <div className="overflow-x-auto overflow-y-auto max-h-[500px]">
+                  <table className="w-full text-left border-collapse min-w-[320px]">
+                    <thead className="sticky top-0 z-10 bg-white">
+                      <tr className="border-b border-gray-100 text-xs font-bold text-church-slate uppercase tracking-wider">
+                        <th className="p-4 pl-6 bg-white">Member Name</th>
+                        <th className="p-4 text-right pr-6 bg-white">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {members.map(member => (
+                        <tr key={member.memberId} className="hover:bg-gray-50/50 group">
+                          <td className="p-4 pl-6">
+                            <div className="flex items-center shrink-0">
+                              <div className="w-8 h-8 rounded-full bg-church-green/10 flex items-center justify-center text-church-green font-bold text-sm uppercase shrink-0">
+                                {member.memberName?.charAt(0) || 'U'}
+                              </div>
+                              <div className="ml-3 shrink-0">
+                                <span className="font-bold text-church-navy shrink-0">{member.memberName}</span>
                               {(ministry.leaderIds || []).includes(member.memberId) && (
                                 <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800">
                                   Leader
@@ -318,6 +319,7 @@ export default function MinistryDetails() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
             </div>
           )}
