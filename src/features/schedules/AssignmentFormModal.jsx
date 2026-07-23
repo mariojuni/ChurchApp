@@ -163,6 +163,8 @@ export default function AssignmentFormModal({ isOpen, onClose, existingAssignmen
     const ministryName = activeMinistry ? activeMinistry.name : 'Unknown Ministry';
     const eventName = activeEvent ? activeEvent.title : 'Unknown Event';
 
+    const isWorshipSongListEnabled = Boolean(activeMinistry?.type === 'worship' && activeMinistry?.features?.songListEnabled === true);
+
     const data = {
       churchId: userProfile?.churchId || '',
       eventId: selectedEvent,
@@ -170,12 +172,14 @@ export default function AssignmentFormModal({ isOpen, onClose, existingAssignmen
       eventDate: activeEvent?.date || '',
       ministryId: selectedMinistry,
       ministryName,
+      ministryType: activeMinistry?.type || 'general',
       roleName: selectedRole,
       memberId: selectedMember,
       memberName,
       callTime,
       notes,
       status,
+      canViewSongList: isWorshipSongListEnabled,
       updatedAt: new Date().toISOString()
     };
 
@@ -230,6 +234,18 @@ export default function AssignmentFormModal({ isOpen, onClose, existingAssignmen
               options={ministries.map(m => ({ value: m.id, label: m.name }))}
               placeholder="-- Select Ministry --"
             />
+            {selectedMinistry && activeMinistry && (
+              <div className="mt-2">
+                {activeMinistry.type === 'worship' && activeMinistry.features?.songListEnabled ? (
+                  <div className="p-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-xs font-semibold text-indigo-900 flex items-center justify-between">
+                    <span>Song List Access Enabled</span>
+                    <span className="px-2 py-0.5 bg-indigo-600 text-white font-bold text-[10px] rounded-full uppercase tracking-wider">
+                      Active
+                    </span>
+                  </div>
+                ) : null}
+              </div>
+            )}
           </div>
 
           {selectedMinistry && (

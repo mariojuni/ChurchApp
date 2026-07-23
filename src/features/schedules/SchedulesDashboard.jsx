@@ -137,9 +137,16 @@ export default function SchedulesDashboard() {
                               <Users size={14} className="mr-1.5" /> {a.memberName}
                             </div>
                             {a.callTime && <p className="text-xs text-gray-500 mt-2">Call: {a.callTime}</p>}
-                            <span className={`inline-block mt-3 text-[10px] uppercase font-bold px-2 py-0.5 rounded ${a.status === 'Confirmed' ? 'bg-green-100 text-green-700' : (a.status === 'Declined' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700')}`}>
-                              {a.status}
-                            </span>
+                            <div className="flex items-center space-x-2 mt-3">
+                              <span className={`inline-block text-[10px] uppercase font-bold px-2 py-0.5 rounded ${a.status === 'Confirmed' ? 'bg-green-100 text-green-700' : (a.status === 'Declined' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700')}`}>
+                                {a.status}
+                              </span>
+                              {a.canViewSongList && (
+                                <span className="inline-block text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-700">
+                                  Song List Enabled
+                                </span>
+                              )}
+                            </div>
                             
                             <div className="absolute top-4 right-4">
                               <button onClick={() => toggleMenu(a.id)} className="text-gray-400 hover:text-church-navy"><MoreVertical size={16} /></button>

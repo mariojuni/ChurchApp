@@ -342,6 +342,18 @@ export default function MinistryDetails() {
             
             <div className="space-y-4">
               <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-500">Ministry Type</span>
+                <span className="text-sm font-bold text-church-navy capitalize">
+                  {ministry.type || 'General'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-500">Song List Access</span>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${ministry.type === 'worship' && ministry.features?.songListEnabled ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100 text-gray-600'}`}>
+                  {ministry.type === 'worship' && ministry.features?.songListEnabled ? 'Enabled' : 'Disabled'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-500">Status</span>
                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${ministry.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
                   {ministry.status}

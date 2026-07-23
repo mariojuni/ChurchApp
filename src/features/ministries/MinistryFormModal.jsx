@@ -91,16 +91,12 @@ export default function MinistryFormModal({ isOpen, onClose, ministry = null }) 
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    type: 'general',
     status: 'Active',
     roles: ['Leader', 'Member'],
     roleDetails: {},
     features: {
-      staffScreenEnabled: false,
-      worshipTabEnabled: false,
-      serveSchedulingEnabled: false,
-      songLibraryEnabled: false,
-      setlistEnabled: false,
-      chordChartEnabled: false
+      songListEnabled: false
     }
   });
   const [newRole, setNewRole] = useState('');
@@ -114,32 +110,24 @@ export default function MinistryFormModal({ isOpen, onClose, ministry = null }) 
       setFormData({
         name: ministry.name || '',
         description: ministry.description || '',
+        type: ministry.type || 'general',
         status: ministry.status || 'Active',
         roles: ministry.roles || ['Leader', 'Member'],
         roleDetails: ministry.roleDetails || {},
-        features: ministry.features || {
-          staffScreenEnabled: false,
-          worshipTabEnabled: false,
-          serveSchedulingEnabled: false,
-          songLibraryEnabled: false,
-          setlistEnabled: false,
-          chordChartEnabled: false
+        features: {
+          songListEnabled: ministry.features?.songListEnabled ?? false
         }
       });
     } else {
       setFormData({
         name: '',
         description: '',
+        type: 'general',
         status: 'Active',
         roles: ['Leader', 'Member'],
         roleDetails: {},
         features: {
-          staffScreenEnabled: false,
-          worshipTabEnabled: false,
-          serveSchedulingEnabled: false,
-          songLibraryEnabled: false,
-          setlistEnabled: false,
-          chordChartEnabled: false
+          songListEnabled: false
         }
       });
     }
@@ -153,23 +141,30 @@ export default function MinistryFormModal({ isOpen, onClose, ministry = null }) 
   if (!isOpen) return null;
 
   const handleChange = (e) => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    if (name === 'type') {
+      setFormData(prev => ({
+        ...prev,
+        type: value,
+        features: {
+          ...prev.features,
+          songListEnabled: value === 'worship' ? prev.features?.songListEnabled || false : false
+        }
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleFeatureChange = (featureKey) => {
     setFormData(prev => {
       const currentFeatures = prev.features || {};
-      let updatedFeatures = {
-        ...currentFeatures,
-        [featureKey]: !currentFeatures[featureKey]
-      };
-      // Auto-enable staffScreenEnabled if worshipTabEnabled is true
-      if (featureKey === 'worshipTabEnabled' && updatedFeatures.worshipTabEnabled) {
-        updatedFeatures.staffScreenEnabled = true;
-      }
       return {
         ...prev,
-        features: updatedFeatures
+        features: {
+          ...currentFeatures,
+          [featureKey]: !currentFeatures[featureKey]
+        }
       };
     });
   };
@@ -207,15 +202,21 @@ export default function MinistryFormModal({ isOpen, onClose, ministry = null }) 
     setLoading(true);
     setError('');
 
+    const payload = {
+      ...formData,
+      type: formData.type || 'general',
+      features: {
+        songListEnabled: formData.type === 'worship' ? Boolean(formData.features?.songListEnabled) : false
+      },
+      updatedAt: serverTimestamp()
+    };
+
     try {
       if (ministry) {
-        await updateDoc(doc(db, 'ministries', ministry.id), {
-          ...formData,
-          updatedAt: serverTimestamp()
-        });
+        await updateDoc(doc(db, 'ministries', ministry.id), payload);
       } else {
         await addDoc(collection(db, 'ministries'), {
-          ...formData,
+          ...payload,
           members: [],
           createdAt: serverTimestamp(),
           churchId: userProfile?.churchId || 'YmEc6C69Xz4DKRQaQZBV' 
@@ -272,6 +273,24 @@ export default function MinistryFormModal({ isOpen, onClose, ministry = null }) 
               </div>
 
               <div>
+                <label className="block text-sm font-medium text-church-navy mb-1">Ministry Type *</label>
+                <ModernDropdown
+                  value={formData.type}
+                  onChange={(val) => handleChange({ target: { name: 'type', value: val } })}
+                  options={[
+                    { value: 'worship', label: 'Worship (Music & Praise)' },
+                    { value: 'ushers', label: 'Ushers & Greeters' },
+                    { value: 'prayer', label: 'Prayer Ministry' },
+                    { value: 'teaching', label: 'Teaching & Preaching' },
+                    { value: 'youth', label: 'Youth Ministry' },
+                    { value: 'children', label: 'Children\'s Ministry' },
+                    { value: 'media', label: 'Media & Tech' },
+                    { value: 'general', label: 'General Ministry' },
+                  ]}
+                />
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-church-navy mb-1">Description</label>
                 <textarea name="description" rows="3" value={formData.description} onChange={handleChange} placeholder="What is the purpose of this ministry?" className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-church-green resize-none"></textarea>
               </div>
@@ -291,62 +310,32 @@ export default function MinistryFormModal({ isOpen, onClose, ministry = null }) 
           </div>
 
           <div className={activeTab === 'features' ? 'block' : 'hidden'}>
-            <p className="text-xs text-church-slate mb-4">Enable specific Staff Management features for active members of this ministry.</p>
+            <p className="text-xs text-church-slate mb-4">Configure access permissions and features for active members of this ministry.</p>
             
             <div className="space-y-4">
-              <label className="flex items-start space-x-3 cursor-pointer">
-                <input 
-                  type="checkbox"
-                  checked={formData.features?.worshipTabEnabled || false}
-                  onChange={() => handleFeatureChange('worshipTabEnabled')}
-                  className="mt-1 w-4 h-4 text-church-green border-gray-300 rounded focus:ring-church-green"
-                />
-                <div>
-                  <span className="block text-sm font-medium text-church-navy">Enable Worship Tab in Staff Management</span>
-                  <span className="block text-xs text-church-slate">Active members of this ministry will see the Worship tab in Staff Management.</span>
+              {formData.type === 'worship' ? (
+                <label className="flex items-start space-x-3 cursor-pointer p-4 bg-gray-50 border border-gray-100 rounded-2xl">
+                  <input 
+                    type="checkbox"
+                    checked={formData.features?.songListEnabled || false}
+                    onChange={() => handleFeatureChange('songListEnabled')}
+                    className="mt-1 w-4 h-4 text-church-green border-gray-300 rounded focus:ring-church-green"
+                  />
+                  <div>
+                    <span className="block text-sm font-bold text-church-navy">Enable Song List Access</span>
+                    <span className="block text-xs text-church-slate mt-1">
+                      When enabled, members assigned to this ministry for an upcoming worship event can view the worship song list, lyrics, chords, key, capo, tempo, and save their own personal arrangement in the mobile app.
+                    </span>
+                  </div>
+                </label>
+              ) : (
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl text-xs text-gray-600">
+                  Song list access is only available for <strong>Worship</strong> type ministries. Change the Ministry Type to <strong>Worship (Music & Praise)</strong> in the General tab to enable song list access.
                 </div>
-              </label>
-
-              <label className="flex items-start space-x-3 cursor-pointer">
-                <input 
-                  type="checkbox"
-                  checked={formData.features?.songLibraryEnabled || false}
-                  onChange={() => handleFeatureChange('songLibraryEnabled')}
-                  className="mt-1 w-4 h-4 text-church-green border-gray-300 rounded focus:ring-church-green"
-                />
-                <div>
-                  <span className="block text-sm font-medium text-church-navy">Enable Song Library Access</span>
-                  <span className="block text-xs text-church-slate">Allows members to view the song library.</span>
-                </div>
-              </label>
-
-              <label className="flex items-start space-x-3 cursor-pointer">
-                <input 
-                  type="checkbox"
-                  checked={formData.features?.setlistEnabled || false}
-                  onChange={() => handleFeatureChange('setlistEnabled')}
-                  className="mt-1 w-4 h-4 text-church-green border-gray-300 rounded focus:ring-church-green"
-                />
-                <div>
-                  <span className="block text-sm font-medium text-church-navy">Enable Setlist Access</span>
-                  <span className="block text-xs text-church-slate">Allows members to view worship setlists.</span>
-                </div>
-              </label>
-
-              <label className="flex items-start space-x-3 cursor-pointer">
-                <input 
-                  type="checkbox"
-                  checked={formData.features?.chordChartEnabled || false}
-                  onChange={() => handleFeatureChange('chordChartEnabled')}
-                  className="mt-1 w-4 h-4 text-church-green border-gray-300 rounded focus:ring-church-green"
-                />
-                <div>
-                  <span className="block text-sm font-medium text-church-navy">Enable Chord Chart Access</span>
-                  <span className="block text-xs text-church-slate">Allows members to view chord charts for songs.</span>
-                </div>
-              </label>
+              )}
             </div>
           </div>
+
 
           <div className={activeTab === 'roles' ? 'block' : 'hidden'}>
             <p className="text-xs text-church-slate mb-4">Define the specific roles members can have in this ministry (e.g. Vocalist, Drummer, Sound Tech).</p>

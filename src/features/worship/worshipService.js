@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, addDoc, updateDoc, deleteDoc, query, where, orderBy, getDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, addDoc, updateDoc, deleteDoc, query, where, orderBy, getDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase';
 
 // Songs
@@ -166,7 +166,23 @@ export const updateSetlist = async (id, setlistData) => {
 };
 
 export const deleteSetlist = async (id) => {
-  await deleteDoc(doc(db, 'worshipSetlists', id));
+  const batch = writeBatch(db);
+
+  // Delete setlist doc
+  const setlistRef = doc(db, 'worshipSetlists', id);
+  batch.delete(setlistRef);
+
+  // Find and delete associated setlist items
+  const itemsQuery = query(
+    collection(db, 'worshipSetlistItems'),
+    where('setlistId', '==', id)
+  );
+  const itemsSnapshot = await getDocs(itemsQuery);
+  itemsSnapshot.docs.forEach((itemDoc) => {
+    batch.delete(itemDoc.ref);
+  });
+
+  await batch.commit();
 };
 
 // Setlist Items
