@@ -3,7 +3,6 @@ import { X } from 'lucide-react';
 import { createSetlist, updateSetlist } from './worshipService';
 import { useAuth } from '../../context/AuthContext';
 import ModernDropdown from '../../components/ui/ModernDropdown';
-import ModernDatePicker from '../../components/ui/ModernDatePicker';
 
 export default function SetlistFormModal({ isOpen, onClose, setlist, events, onSaved }) {
   const { userProfile, currentUser } = useAuth();
@@ -33,16 +32,15 @@ export default function SetlistFormModal({ isOpen, onClose, setlist, events, onS
     }
   }, [setlist, isOpen]);
 
-  // When eventId changes, automatically fill serviceDate
+  // When eventId changes, automatically sync serviceDate and title if blank
   useEffect(() => {
     if (formData.eventId && events[formData.eventId]) {
       const selectedEvent = events[formData.eventId];
-      if (selectedEvent.date && !formData.serviceDate) {
-        setFormData(prev => ({ ...prev, serviceDate: selectedEvent.date }));
-      }
-      if (!formData.title) {
-        setFormData(prev => ({ ...prev, title: `Worship Setlist - ${selectedEvent.title}` }));
-      }
+      setFormData(prev => ({
+        ...prev,
+        serviceDate: selectedEvent.date || prev.serviceDate,
+        title: prev.title ? prev.title : `Worship Setlist - ${selectedEvent.title}`
+      }));
     }
   }, [formData.eventId, events]);
 
@@ -102,7 +100,17 @@ export default function SetlistFormModal({ isOpen, onClose, setlist, events, onS
                 options={[
                   { value: '', label: '-- Select an Event --' },
                   ...Object.values(events)
-                    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+                    .sort((a, b) => {
+                      const now = new Date();
+                      const dateA = a.date ? new Date(a.date + 'T00:00:00') : null;
+                      const dateB = b.date ? new Date(b.date + 'T00:00:00') : null;
+                      if (!dateA && !dateB) return 0;
+                      if (!dateA) return 1;
+                      if (!dateB) return -1;
+                      const diffA = Math.abs(dateA.getTime() - now.getTime());
+                      const diffB = Math.abs(dateB.getTime() - now.getTime());
+                      return diffA - diffB;
+                    })
                     .map(event => ({ value: event.id, label: `${event.date} | ${event.title}` }))
                 ]}
               />
@@ -117,15 +125,6 @@ export default function SetlistFormModal({ isOpen, onClose, setlist, events, onS
                 value={formData.title} 
                 onChange={handleChange}
                 className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-church-green focus:ring-1 focus:ring-church-green" 
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-church-navy mb-2">Service Date</label>
-              <ModernDatePicker 
-                name="serviceDate" 
-                value={formData.serviceDate} 
-                onChange={handleChange}
               />
             </div>
 
