@@ -3,29 +3,7 @@ import { X } from 'lucide-react';
 import { collection, query, orderBy, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import ModernDropdown from '../../components/ui/ModernDropdown';
-
-// Helper to format name as: FirstName [Middle Initial.] LastName
-function formatStandardName(d) {
-  const f = (d.firstName || '').trim();
-  const m = d.middleName ? `${d.middleName.trim().charAt(0)}.` : '';
-  const l = (d.lastName || '').trim();
-  const constructed = [f, m, l].filter(Boolean).join(' ');
-  if (constructed) return constructed;
-
-  // Fallback if only 'name' string field exists
-  if (d.name) {
-    const parts = d.name.trim().split(/\s+/);
-    if (parts.length >= 3) {
-      const first = parts[0];
-      const mid = `${parts[1].charAt(0)}.`;
-      const last = parts.slice(2).join(' ');
-      return `${first} ${mid} ${last}`;
-    }
-    return d.name.trim();
-  }
-
-  return 'Unnamed Member';
-}
+import { formatStandardName } from '../../utils/nameUtils';
 
 export default function AssignMemberModal({ isOpen, onClose, ministry }) {
   const [members, setMembers] = useState([]);

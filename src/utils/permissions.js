@@ -172,3 +172,6 @@ export function getAssignableRoles(userProfile) {
 export function canManageEvents(userProfile) {
   return hasAnyRole(userProfile, ['super_admin', 'church_admin', 'pastor', 'secretary']);
 }
+
+export * from './ministryApplicationPermissions';
+

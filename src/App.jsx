@@ -64,7 +64,15 @@ function AppRoutes() {
           <Route 
             path="ministries" 
             element={
-              <RoleGuard allowedRoles={['super_admin', 'church_admin', 'pastor', 'ministry_leader']}>
+              <RoleGuard allowedRoles={['super_admin', 'church_admin', 'pastor', 'ministry_leader', 'secretary']}>
+                <MinistriesList />
+              </RoleGuard>
+            } 
+          />
+          <Route 
+            path="ministries/applications" 
+            element={
+              <RoleGuard allowedRoles={['super_admin', 'church_admin', 'pastor', 'ministry_leader', 'secretary']}>
                 <MinistriesList />
               </RoleGuard>
             } 
