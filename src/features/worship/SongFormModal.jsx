@@ -4,6 +4,31 @@ import { createSong, updateSong } from './worshipService';
 import { useAuth } from '../../context/AuthContext';
 import ModernDropdown from '../../components/ui/ModernDropdown';
 
+export function extractYouTubeVideoId(url) {
+  if (!url || typeof url !== 'string') return null;
+  const str = url.trim();
+
+  // Match embed URL (works for full iframe code paste as well)
+  const embedMatch = str.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/);
+  if (embedMatch) return embedMatch[1];
+
+  // Match watch URL
+  const watchMatch = str.match(/v=([a-zA-Z0-9_-]{11})/);
+  if (watchMatch) return watchMatch[1];
+
+  // Match youtu.be URL
+  const shortMatch = str.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (shortMatch) return shortMatch[1];
+
+  // Match shorts URL
+  const shortsMatch = str.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/);
+  if (shortsMatch) return shortsMatch[1];
+
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|shorts\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = str.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+}
+
 export default function SongFormModal({ isOpen, onClose, song, onSaved }) {
   const { userProfile, currentUser } = useAuth();
   const [formData, setFormData] = useState({
@@ -17,6 +42,11 @@ export default function SongFormModal({ isOpen, onClose, song, onSaved }) {
     tags: '',
     status: 'active',
     allowPublicLyrics: false,
+    directoryVisibility: 'hidden',
+    allowLyricsInDirectory: false,
+    language: 'english',
+    category: 'contemporary',
+    youtubeUrl: '',
     lyrics: '',
     chordChart: '',
     copyrightInfo: '',
@@ -37,6 +67,11 @@ export default function SongFormModal({ isOpen, onClose, song, onSaved }) {
         tags: song.tags ? song.tags.join(', ') : '',
         status: song.status || 'active',
         allowPublicLyrics: song.allowPublicLyrics || false,
+        directoryVisibility: song.directoryVisibility || 'hidden',
+        allowLyricsInDirectory: song.allowLyricsInDirectory !== undefined ? song.allowLyricsInDirectory : (song.allowPublicLyrics || false),
+        language: song.language || 'english',
+        category: song.category || 'contemporary',
+        youtubeUrl: song.mediaReferences?.youtubeUrl || song.youtubeUrl || '',
         lyrics: song.lyrics || '',
         chordChart: song.chordChart || '',
         copyrightInfo: song.copyrightInfo || song.copyrightOwner || '',
@@ -54,6 +89,11 @@ export default function SongFormModal({ isOpen, onClose, song, onSaved }) {
         tags: '',
         status: 'active',
         allowPublicLyrics: false,
+        directoryVisibility: 'hidden',
+        allowLyricsInDirectory: false,
+        language: 'english',
+        category: 'contemporary',
+        youtubeUrl: '',
         lyrics: '',
         chordChart: '',
         copyrightInfo: '',
@@ -137,10 +177,22 @@ export default function SongFormModal({ isOpen, onClose, song, onSaved }) {
     
     setSaving(true);
     try {
+      const videoId = extractYouTubeVideoId(formData.youtubeUrl);
+      const mediaReferences = videoId ? {
+        provider: 'youtube',
+        youtubeUrl: formData.youtubeUrl,
+        youtubeVideoId: videoId,
+        youtubeTitle: formData.title || '',
+        youtubeThumbnailUrl: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+      } : null;
+
       const dataToSave = {
         ...formData,
+        allowPublicLyrics: Boolean(formData.allowLyricsInDirectory),
+        mediaReferences: mediaReferences || null,
+        youtubeVideoId: videoId || null,
         churchId: userProfile?.churchId || null,
-        tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
+        tags: typeof formData.tags === 'string' ? formData.tags.split(',').map(t => t.trim()).filter(Boolean) : (formData.tags || []),
         tempoBpm: formData.tempoBpm ? Number(formData.tempoBpm) : null,
         createdBy: currentUser?.uid || null
       };
@@ -246,6 +298,40 @@ export default function SongFormModal({ isOpen, onClose, song, onSaved }) {
               </div>
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-church-navy mb-2">Language</label>
+                <ModernDropdown
+                  value={formData.language}
+                  onChange={(val) => handleChange({ target: { name: 'language', value: val } })}
+                  options={[
+                    { value: 'english', label: 'English' },
+                    { value: 'tagalog', label: 'Tagalog' },
+                    { value: 'ilocano', label: 'Ilocano' },
+                    { value: 'other', label: 'Other' }
+                  ]}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-church-navy mb-2">Category</label>
+                <ModernDropdown
+                  value={formData.category}
+                  onChange={(val) => handleChange({ target: { name: 'category', value: val } })}
+                  options={[
+                    { value: 'hymn', label: 'Hymn' },
+                    { value: 'contemporary', label: 'Contemporary' },
+                    { value: 'psalm', label: 'Psalm' },
+                    { value: 'praise', label: 'Praise' },
+                    { value: 'worship', label: 'Worship' },
+                    { value: 'response', label: 'Response' },
+                    { value: 'offertory', label: 'Offertory' },
+                    { value: 'communion', label: 'Communion' },
+                    { value: 'other', label: 'Other' }
+                  ]}
+                />
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-semibold text-church-navy mb-2">Tags (comma separated)</label>
               <input 
@@ -257,22 +343,67 @@ export default function SongFormModal({ isOpen, onClose, song, onSaved }) {
                 className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-church-green focus:ring-1 focus:ring-church-green" 
               />
             </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-church-navy mb-2">YouTube Reference Link</label>
+              <input 
+                type="text" 
+                name="youtubeUrl"
+                placeholder="e.g. https://www.youtube.com/watch?v=... or https://youtu.be/..."
+                value={formData.youtubeUrl} 
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-church-green focus:ring-1 focus:ring-church-green" 
+              />
+              {extractYouTubeVideoId(formData.youtubeUrl) && (
+                <div className="mt-3 flex items-center p-3 bg-red-50 rounded-xl border border-red-100">
+                  <img 
+                    src={`https://img.youtube.com/vi/${extractYouTubeVideoId(formData.youtubeUrl)}/hqdefault.jpg`} 
+                    alt="YouTube Preview" 
+                    className="w-24 h-16 object-cover rounded-lg mr-3 border border-red-200 shadow-sm"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-red-700 uppercase tracking-wider block">YouTube Reference Preview</span>
+                    <span className="text-xs text-gray-600">Video ID: <code className="bg-red-100 px-1.5 py-0.5 rounded text-red-800 font-mono text-xs">{extractYouTubeVideoId(formData.youtubeUrl)}</code></span>
+                  </div>
+                </div>
+              )}
+            </div>
             
-            <div className="border-t border-gray-100 pt-6">
-              <label className="flex items-center space-x-3 mb-4">
-                <input 
-                  type="checkbox"
-                  name="allowPublicLyrics"
-                  checked={formData.allowPublicLyrics}
-                  onChange={handleChange}
-                  className="w-5 h-5 rounded text-church-green focus:ring-church-green" 
-                />
-                <span className="text-sm font-semibold text-church-navy">Allow Public Lyrics</span>
-              </label>
-              <p className="text-xs text-gray-500 mb-4 ml-8 -mt-2">
-                If checked, regular members can view lyrics in the mobile app event details.
+            <div className="border-t border-gray-100 pt-6 bg-blue-50/50 p-4 rounded-2xl border border-blue-100">
+              <h3 className="text-base font-bold text-church-navy mb-1">Mobile Community Directory</h3>
+              <p className="text-xs text-church-slate mb-4">
+                Songs marked Members Only or Public will appear in the mobile Community Songs Directory. Chords and worship arrangement details remain available only through assigned worship duties.
               </p>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-semibold text-church-navy mb-2">Directory Visibility</label>
+                  <ModernDropdown
+                    value={formData.directoryVisibility}
+                    onChange={(val) => handleChange({ target: { name: 'directoryVisibility', value: val } })}
+                    options={[
+                      { value: 'hidden', label: 'Hidden' },
+                      { value: 'members_only', label: 'Members Only' },
+                      { value: 'public', label: 'Public' }
+                    ]}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-church-navy mb-2">Allow Lyrics in Directory</label>
+                  <ModernDropdown
+                    value={formData.allowLyricsInDirectory ? 'yes' : 'no'}
+                    onChange={(val) => handleChange({ target: { name: 'allowLyricsInDirectory', type: 'checkbox', checked: val === 'yes' } })}
+                    options={[
+                      { value: 'no', label: 'No' },
+                      { value: 'yes', label: 'Yes' }
+                    ]}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100 pt-6">
               <label className="block text-sm font-semibold text-church-navy mb-2">Lyrics</label>
               <textarea 
                 name="lyrics" 

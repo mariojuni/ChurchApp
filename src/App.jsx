@@ -191,7 +191,7 @@ function AppRoutes() {
           <Route 
             path="worship/songs" 
             element={
-              <RoleGuard allowedRoles={['super_admin', 'church_admin', 'pastor', 'ministry_leader', 'viewer']}>
+              <RoleGuard allowedRoles={['super_admin', 'church_admin', 'pastor', 'ministry_leader', 'secretary']}>
                 <SongsList />
               </RoleGuard>
             } 

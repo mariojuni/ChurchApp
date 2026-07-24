@@ -22,6 +22,11 @@ export const getSong = async (id) => {
 
 export const createSong = async (songData) => {
   const docRef = await addDoc(collection(db, 'songs'), {
+    directoryVisibility: 'hidden',
+    allowLyricsInDirectory: false,
+    language: 'english',
+    category: 'contemporary',
+    status: 'active',
     ...songData,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
